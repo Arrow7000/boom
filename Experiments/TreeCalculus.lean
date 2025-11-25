@@ -2,6 +2,239 @@ import Mathlib
 
 
 
+/-- Static values, that cannot be reduced further, not even their subterms -/
+@[grind cases]
+inductive Value : Type where
+  | leaf : Value
+  | stem : Value → Value
+  | fork : Value → Value → Value
+
+
+
+
+@[grind cases]
+inductive ValOrRedex : Type where
+  | leaf : ValOrRedex
+  | stem : ValOrRedex → ValOrRedex
+  | fork : ValOrRedex → ValOrRedex → ValOrRedex
+  | redex : ValOrRedex → ValOrRedex → ValOrRedex → List ValOrRedex → ValOrRedex
+  deriving Repr
+
+
+
+
+
+@[reducible, simp]
+def ValOrRedex.toList (v : ValOrRedex) : List ValOrRedex :=
+  match v with
+  | .leaf => []
+  | .stem a => a :: []
+  | .fork a b => a :: b :: []
+  | .redex a b c items => a :: b :: c :: items
+
+
+
+@[reducible, simp]
+def ValOrRedex.ofList (list : List ValOrRedex) : ValOrRedex :=
+  match list with
+  | [] => .leaf
+  | a :: [] => .stem a
+  | a :: b :: [] => .fork a b
+  | a :: b :: c :: rest => .redex a b c rest
+
+
+
+
+
+
+
+@[reducible, simp]
+def ValOrRedex.append (fst snd : ValOrRedex) : ValOrRedex :=
+  ofList (toList fst ++ toList snd)
+
+
+/- Computations only apply to `.items` containing at least 3 items and those 3 items must all be values. A reduction takes a ValOrRedex and returns a Value. It does so by either returning `.value`'s contents. Or if `.items`, reduce all the subterms until they're values, and then if you have < 3 values, return them as a Value. Otherwise if ≥ 3, apply a rewrite rule to the first 3 values. Then append the resulting list of 0-2 values to the front of the rest of the items, and rinse and repeat. -/
+
+
+mutual
+
+@[reducible]
+def ValOrRedex.decEq (a b : ValOrRedex) : Decidable (a = b) :=
+  match a, b with
+  | .leaf, .leaf => .isTrue ?_
+  | .stem a, .stem a' =>
+    match a.decEq a' with
+    | .isTrue prf => .isTrue ?_
+    | .isFalse prf => .isFalse ?_
+
+  | .fork a b, .fork a' b' =>
+    match a.decEq a' with
+    | .isTrue prf =>
+      match b.decEq b' with
+      | .isTrue prf => .isTrue ?_
+      | .isFalse prf => .isFalse ?_
+
+    | .isFalse prf => .isFalse ?_
+
+  | .redex a b c rest, .redex a' b' c' rest' =>
+    match a.decEq a' with
+    | .isTrue prf =>
+      match b.decEq b' with
+      | .isTrue prf =>
+        match c.decEq c' with
+        | .isTrue prf =>
+          match ValOrRedex.listDecEq rest rest' with
+          | .isTrue prf => .isTrue ?_
+          | .isFalse prf => .isFalse ?_
+        | .isFalse prf => .isFalse ?_
+
+      | .isFalse prf => .isFalse ?_
+
+    | .isFalse prf => .isFalse ?_
+  | (redex _ _ _ _), (fork _ _)
+  | (redex _ _ _ _), (stem _)
+  | (redex _ _ _ _), leaf
+  | (fork _ _), (redex _ _ _ _)
+  | (fork _ _), (stem _)
+  | (fork _ _), leaf
+  | (stem _), (redex _ _ _ _)
+  | (stem _), (fork _ _)
+  | (stem _), leaf
+  | leaf, (redex _ _ _ _)
+  | leaf, (fork _ _)
+  | leaf, (stem _) => .isFalse ?_
+  where finally repeat simp [*]
+
+
+
+def ValOrRedex.listDecEq (a b : List ValOrRedex) : Decidable (a = b) :=
+  match a, b with
+  | [], [] => .isTrue ?_
+  | head :: rest, head' :: rest' =>
+    match head.decEq head' with
+    | .isTrue prf =>
+      match listDecEq rest rest' with
+      | .isTrue prf => .isTrue ?_
+      | .isFalse prf => .isFalse ?_
+    | .isFalse prf => .isFalse ?_
+  | [], _ :: _
+  | _ :: _, [] => .isFalse ?_
+  where finally repeat simp [*]
+
+end
+
+
+@[grind]
+instance : DecidableEq ValOrRedex := ValOrRedex.decEq
+
+
+
+
+
+
+/-- Rewrite rules apply to exactly 3 terms. The first of which always needs to be a value – albeit not fully reduced. We never care what the 2nd contains. The third one we only care about for rules 3a-c, at which point we do need it to be a value, albeit here too not necessarily fully reduced.-/
+@[grind cases]
+inductive Rewrite : (a b c output : ValOrRedex) → Prop where
+  | one :
+    Rewrite .leaf y z
+      y
+
+  | two :
+    Rewrite (.stem x) y z
+      (.redex x z (.fork y z) [])
+
+  | threeA :
+    Rewrite (.fork w x) y .leaf
+      w
+
+  | threeB :
+    Rewrite (.fork w x) y (.stem u)
+      (.fork x u)
+
+  | threeC :
+    Rewrite (.fork w x) y (.fork u v)
+      (.redex y u v [])
+
+
+
+/-- The reduction relation on a term -/
+inductive Reduction : (term output : ValOrRedex) → Prop where
+  | outerFirst :
+    Rewrite a b c output →
+    -- Reduction output result →
+    Reduction (.redex a b c _) output
+
+  | innerFirst :
+    -- Rewrite a b c output →
+    Reduction a a' →
+    Reduction b b' →
+    Reduction c c' →
+    Reduction (.redex a' b' c' rest) result →
+    Reduction (.redex a b c _) result
+
+  | leaf :
+    Reduction .leaf .leaf
+
+  | stem :
+    Reduction a result →
+    Reduction (.stem a) (.stem result)
+
+  | fork :
+    Reduction a resultA →
+    Reduction b resultB →
+    Reduction (.fork a b) (.fork resultA resultB)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def Reduction.coinduct' :
+  (pred : ValOrRedex → ValOrRedex → Prop) →
+  (hyp :
+    ∀ (term output : ValOrRedex),
+      pred term output →
+        (∃ x a b c output_1, Rewrite a b c output_1 ∧ pred output_1 output ∧ term = a.redex b c x) ∨
+          term = ValOrRedex.leaf ∧ output = ValOrRedex.leaf ∨
+            (∃ a result, pred a result ∧ term = a.stem ∧ output = result.stem) ∨
+              ∃ a resultA b resultB, pred a resultA ∧ pred b resultB ∧ term = a.fork b ∧ output = resultA.fork resultB) →
+  (term output : ValOrRedex) → pred term output → Reduction term output :=
+  @Reduction.coinduct
+
+
+-- /- Reduction relation: after reducing everything you always end up with a value -/
+-- inductive Reduction : ValOrRedex → Value → Prop where
+--   | value :
+--     Reduction (.val v) v
+
+--   | rewritableExact3 :
+--     Rewrite a b c output →
+--     Reduction output v →
+--     Reduction (.items (.val a :: b :: c :: [])) v
+
+--   | rewritableMoreThan3 :
+--     Rewrite a b c output →
+--     Prepend output (.items (d :: rest)) prepended →
+--     Reduction prepended v →
+--     Reduction (.items (.val a :: b :: c :: d :: rest)) v
+
+
+
+
+
+
+
+
+
+
 
 @[grind cases]
 inductive Term : Type where
