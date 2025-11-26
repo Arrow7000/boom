@@ -157,75 +157,112 @@ inductive Rewrite : (a b c output : ValOrRedex) → Prop where
 
 
 
+
+
+
+/-- A relation between two lists where `newList` has an item replaced from `list` -/
+@[grind cases]
+inductive ReplaceInList {α} : (list : List α) → (oldItem : α) → (index : Nat) → (newItem : α) → (newList : List α) → Prop where
+  | here {newItem : α} :
+    ReplaceInList (oldItem :: tail) oldItem 0 newItem (newItem :: tail)
+
+  | there :
+    ReplaceInList list oldItem i newItem newList →
+    ReplaceInList (item :: list) oldItem (i+1) newItem (item :: newList)
+
+
+
+
 /-- The reduction relation on a term -/
-inductive Reduction : (term output : ValOrRedex) → Prop where
-  | outerFirst :
-    Rewrite a b c output →
-    -- Reduction output result →
-    Reduction (.redex a b c _) output
-
-  | innerFirst :
-    -- Rewrite a b c output →
-    Reduction a a' →
-    Reduction b b' →
-    Reduction c c' →
-    Reduction (.redex a' b' c' rest) result →
-    Reduction (.redex a b c _) result
-
-  | leaf :
-    Reduction .leaf .leaf
+@[grind cases]
+inductive ReductionStep : (term output : ValOrRedex) → Prop where
+  -- | leaf :
+  --   ReductionStep .leaf .leaf
 
   | stem :
-    Reduction a result →
-    Reduction (.stem a) (.stem result)
+    ReductionStep a result →
+    ReductionStep (.stem a) (.stem result)
 
-  | fork :
-    Reduction a resultA →
-    Reduction b resultB →
-    Reduction (.fork a b) (.fork resultA resultB)
+  | forkFst :
+    ReductionStep a resultA →
+    ReductionStep (.fork a b) (.fork resultA b)
+
+  | forkSnd :
+    ReductionStep b resultB →
+    ReductionStep (.fork a b) (.fork a resultB)
+
+  | rewrite :
+    Rewrite a b c output →
+    ReductionStep (.redex a b c rest) output
+
+  | redexFst :
+    ReductionStep a resultA →
+    ReductionStep (.redex a b c rest) (.redex resultA b c rest)
+
+  | redexSnd :
+    ReductionStep b resultB →
+    ReductionStep (.redex a b c rest) (.redex a resultB c rest)
+
+  | redexThrd :
+    ReductionStep c resultC →
+    ReductionStep (.redex a b c rest) (.redex a b resultC rest)
+
+  /-- You can reduce any item in the `.redex` list -/
+  | redexItemReplace :
+    ReductionStep item reducedItem →
+    ReplaceInList items item i reducedItem newItems →
+    ReductionStep (.redex a b c items) (.redex a b c newItems)
+
+
+
+
+@[grind cases]
+inductive MultiStepReduction : (term output : ValOrRedex) → Prop where
+  | refl :
+    MultiStepReduction term term
+
+  | rel :
+    ReductionStep term output →
+    MultiStepReduction term output
+
+  | trans :
+    MultiStepReduction term output₁ →
+    MultiStepReduction output₁ output₂ →
+    MultiStepReduction term output₂
 
 
 
 
 
+theorem MultiStepReduction.confluence
+  (h₁ : MultiStepReduction a b)
+  (h₂ : MultiStepReduction a c)
+  : ∃ d, MultiStepReduction b d ∧ MultiStepReduction c d := by
+  induction h₁ generalizing c with
+  | refl =>
+    exists c
+    simp [*]
+    refine .refl
+  | trans a b aih bih =>
+    expose_names
+    cases h₂
+    · exists output₂
+      constructor
+      constructor
+      refine .trans a b
+
+    ·
+      expose_names
+      have := aih a
+      have := aih (.rel h)
+      have := bih b
+
+      -- apply bih
 
 
-
-
-
-
-
-
-
-def Reduction.coinduct' :
-  (pred : ValOrRedex → ValOrRedex → Prop) →
-  (hyp :
-    ∀ (term output : ValOrRedex),
-      pred term output →
-        (∃ x a b c output_1, Rewrite a b c output_1 ∧ pred output_1 output ∧ term = a.redex b c x) ∨
-          term = ValOrRedex.leaf ∧ output = ValOrRedex.leaf ∨
-            (∃ a result, pred a result ∧ term = a.stem ∧ output = result.stem) ∨
-              ∃ a resultA b resultB, pred a resultA ∧ pred b resultB ∧ term = a.fork b ∧ output = resultA.fork resultB) →
-  (term output : ValOrRedex) → pred term output → Reduction term output :=
-  @Reduction.coinduct
-
-
--- /- Reduction relation: after reducing everything you always end up with a value -/
--- inductive Reduction : ValOrRedex → Value → Prop where
---   | value :
---     Reduction (.val v) v
-
---   | rewritableExact3 :
---     Rewrite a b c output →
---     Reduction output v →
---     Reduction (.items (.val a :: b :: c :: [])) v
-
---   | rewritableMoreThan3 :
---     Rewrite a b c output →
---     Prepend output (.items (d :: rest)) prepended →
---     Reduction prepended v →
---     Reduction (.items (.val a :: b :: c :: d :: rest)) v
-
+  | rel reduct =>
+    induction reduct
+  sorry
 
 
 
