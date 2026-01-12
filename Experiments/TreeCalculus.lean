@@ -56,41 +56,29 @@ def ValOrRedex.append (fst snd : ValOrRedex) : ValOrRedex :=
 /- Computations only apply to `.items` containing at least 3 items and those 3 items must all be values. A reduction takes a ValOrRedex and returns a Value. It does so by either returning `.value`'s contents. Or if `.items`, reduce all the subterms until they're values, and then if you have < 3 values, return them as a Value. Otherwise if ≥ 3, apply a rewrite rule to the first 3 values. Then append the resulting list of 0-2 values to the front of the rest of the items, and rinse and repeat. -/
 
 
+
+
 mutual
 
 @[reducible]
-def ValOrRedex.decEq (a b : ValOrRedex) : Decidable (a = b) :=
+def ValOrRedex.decEq (a b : ValOrRedex) : Bool :=
   match a, b with
-  | .leaf, .leaf => .isTrue ?_
-  | .stem a, .stem a' =>
-    match a.decEq a' with
-    | .isTrue prf => .isTrue ?_
-    | .isFalse prf => .isFalse ?_
-
+  | .leaf, .leaf => true
+  | .stem a, .stem a' => a.decEq a'
   | .fork a b, .fork a' b' =>
     match a.decEq a' with
-    | .isTrue prf =>
-      match b.decEq b' with
-      | .isTrue prf => .isTrue ?_
-      | .isFalse prf => .isFalse ?_
-
-    | .isFalse prf => .isFalse ?_
-
+    | true => b.decEq b'
+    | false => false
   | .redex a b c rest, .redex a' b' c' rest' =>
     match a.decEq a' with
-    | .isTrue prf =>
+    | true =>
       match b.decEq b' with
-      | .isTrue prf =>
+      | true =>
         match c.decEq c' with
-        | .isTrue prf =>
-          match ValOrRedex.listDecEq rest rest' with
-          | .isTrue prf => .isTrue ?_
-          | .isFalse prf => .isFalse ?_
-        | .isFalse prf => .isFalse ?_
-
-      | .isFalse prf => .isFalse ?_
-
-    | .isFalse prf => .isFalse ?_
+        | true => ValOrRedex.listDecEq rest rest'
+        | false => false
+      | false => false
+    | false => false
   | (redex _ _ _ _), (fork _ _)
   | (redex _ _ _ _), (stem _)
   | (redex _ _ _ _), leaf
@@ -102,37 +90,203 @@ def ValOrRedex.decEq (a b : ValOrRedex) : Decidable (a = b) :=
   | (stem _), leaf
   | leaf, (redex _ _ _ _)
   | leaf, (fork _ _)
-  | leaf, (stem _) => .isFalse ?_
-  where finally repeat simp [*]
+  | leaf, (stem _) => false
 
 
-
-def ValOrRedex.listDecEq (a b : List ValOrRedex) : Decidable (a = b) :=
+def ValOrRedex.listDecEq (a b : List ValOrRedex) : Bool :=
   match a, b with
-  | [], [] => .isTrue ?_
+  | [], [] => true
   | head :: rest, head' :: rest' =>
     match head.decEq head' with
-    | .isTrue prf =>
-      match listDecEq rest rest' with
-      | .isTrue prf => .isTrue ?_
-      | .isFalse prf => .isFalse ?_
-    | .isFalse prf => .isFalse ?_
+    | true => listDecEq rest rest'
+    | false => false
   | [], _ :: _
-  | _ :: _, [] => .isFalse ?_
-  where finally repeat simp [*]
+  | _ :: _, [] => false
 
 end
 
 
+@[grind .]
+theorem ValOrRedex.decEq_sound : ValOrRedex.decEq a b = true → a = b := by
+  intro prem
+  induction a using ValOrRedex.rec (motive_2 := λ list₁ ↦ ∀ {list₂}, ValOrRedex.listDecEq list₁ list₂ = true → list₁ = list₂ ) generalizing b with
+  | leaf => cases b <;> tauto
+  | stem a ih => cases b <;> tauto
+  | fork _ _ => cases b <;> grind
+  | redex a' b' c' rest' aih bih cih restih =>
+    cases b with
+    | leaf => simp at prem
+    | stem => simp at prem
+    | fork => simp at prem
+    | redex a'' b'' c'' rest'' =>
+      simp at ⊢
+      unfold decEq at prem
+      split at prem
+      · expose_names
+        have := aih heq
+        rw [this]
+        simp
+        split at prem
+        · expose_names
+          have := bih heq_1
+          rw [this]
+          simp
+          split at prem
+          · expose_names
+            have := cih heq_2
+            rw [this]
+            simp
+            exact restih prem
+          · contradiction
+        · contradiction
+      · contradiction
+  | @nil list₂ prem =>
+    cases list₂ with
+    | nil => rfl
+    | cons head tail =>
+      unfold listDecEq at prem
+      contradiction
+  | @cons head tail head_ih tail_ih list₂ prem =>
+    cases list₂ with
+    | nil =>
+      unfold listDecEq at prem
+      contradiction
+    | cons head' tail' =>
+      simp
+      unfold listDecEq at prem
+      split at prem
+      · grind
+      · grind
+
+
+
+
+@[grind =]
+theorem ValOrRedex.decEq_complete : a = b → ValOrRedex.decEq a b = true := by
+  intro prem
+  induction a using ValOrRedex.rec (motive_2 := λ list₁ ↦ ∀ {list₂}, list₁ = list₂ → ValOrRedex.listDecEq list₁ list₂ = true) generalizing b with
+  | leaf => cases b <;> tauto
+  | stem a ih =>
+    cases b
+    · simp at prem
+    · simp at prem
+      have := ih prem
+      unfold decEq
+      exact this
+    · simp at prem
+    · simp at prem
+  | fork _ _ => cases b <;> grind
+  | redex a' b' c' rest' aih bih cih restih =>
+    cases b with
+    | leaf => simp at prem
+    | stem => simp at prem
+    | fork => simp at prem
+    | redex a'' b'' c'' rest'' => grind
+  | @nil list₂ prem =>
+    cases list₂ with
+    | nil => rfl
+    | cons head tail => simp at prem
+  | @cons head tail head_ih tail_ih list₂ prem =>
+    cases list₂ with
+    | nil =>
+      unfold listDecEq
+      contradiction
+    | cons head' tail' =>
+      unfold listDecEq
+      split
+      · expose_names
+        simp at prem
+        obtain ⟨_,heqtail⟩ := prem
+        exact tail_ih heqtail
+      · grind
+
+
+
+def ValOrRedex.decideEq (a b : ValOrRedex) : Decidable (a = b) :=
+  decidable_of_bool (ValOrRedex.decEq a b) ⟨decEq_sound, decEq_complete⟩
+
+
 @[grind]
-instance : DecidableEq ValOrRedex := ValOrRedex.decEq
+instance : DecidableEq ValOrRedex := ValOrRedex.decideEq
+
+
+-- mutual
+
+-- @[reducible]
+-- def ValOrRedex.decEq (a b : ValOrRedex) : Decidable (a = b) :=
+--   match a, b with
+--   | .leaf, .leaf => .isTrue ?_
+--   | .stem a, .stem a' =>
+--     match a.decEq a' with
+--     | .isTrue prf => .isTrue ?_
+--     | .isFalse prf => .isFalse ?_
+
+--   | .fork a b, .fork a' b' =>
+--     match a.decEq a' with
+--     | .isTrue prf =>
+--       match b.decEq b' with
+--       | .isTrue prf => .isTrue ?_
+--       | .isFalse prf => .isFalse ?_
+
+--     | .isFalse prf => .isFalse ?_
+
+--   | .redex a b c rest, .redex a' b' c' rest' =>
+--     match a.decEq a' with
+--     | .isTrue prf =>
+--       match b.decEq b' with
+--       | .isTrue prf =>
+--         match c.decEq c' with
+--         | .isTrue prf =>
+--           match ValOrRedex.listDecEq rest rest' with
+--           | .isTrue prf => .isTrue ?_
+--           | .isFalse prf => .isFalse ?_
+--         | .isFalse prf => .isFalse ?_
+
+--       | .isFalse prf => .isFalse ?_
+
+--     | .isFalse prf => .isFalse ?_
+--   | (redex _ _ _ _), (fork _ _)
+--   | (redex _ _ _ _), (stem _)
+--   | (redex _ _ _ _), leaf
+--   | (fork _ _), (redex _ _ _ _)
+--   | (fork _ _), (stem _)
+--   | (fork _ _), leaf
+--   | (stem _), (redex _ _ _ _)
+--   | (stem _), (fork _ _)
+--   | (stem _), leaf
+--   | leaf, (redex _ _ _ _)
+--   | leaf, (fork _ _)
+--   | leaf, (stem _) => .isFalse ?_
+--   where finally repeat simp [*]
+
+
+
+-- def ValOrRedex.listDecEq (a b : List ValOrRedex) : Decidable (a = b) :=
+--   match a, b with
+--   | [], [] => .isTrue ?_
+--   | head :: rest, head' :: rest' =>
+--     match head.decEq head' with
+--     | .isTrue prf =>
+--       match listDecEq rest rest' with
+--       | .isTrue prf => .isTrue ?_
+--       | .isFalse prf => .isFalse ?_
+--     | .isFalse prf => .isFalse ?_
+--   | [], _ :: _
+--   | _ :: _, [] => .isFalse ?_
+--   where finally repeat simp [*]
+
+-- end
+
+
+-- @[grind]
+-- instance : DecidableEq ValOrRedex := ValOrRedex.decEq
 
 
 
 
 
 
-/-- Rewrite rules apply to exactly 3 terms. The first of which always needs to be a value – albeit not fully reduced. We never care what the 2nd contains. The third one we only care about for rules 3a-c, at which point we do need it to be a value, albeit here too not necessarily fully reduced.-/
+/-- Rewrite rules apply to exactly 3 terms. The first of which always needs to be a value – albeit not fully recursively reduced. We never care what the 2nd contains. The third one we only care about for rules 3a-c, at which point we do need it to be a value, albeit here too not necessarily fully reduced.-/
 @[grind cases]
 inductive Rewrite : (a b c output : ValOrRedex) → Prop where
   | one :
@@ -173,12 +327,9 @@ inductive ReplaceInList {α} : (list : List α) → (oldItem : α) → (index : 
 
 
 
-/-- The reduction relation on a term -/
+/-- The single-step reduction relation on a term, with congruence -/
 @[grind cases]
 inductive ReductionStep : (term output : ValOrRedex) → Prop where
-  -- | leaf :
-  --   ReductionStep .leaf .leaf
-
   | stem :
     ReductionStep a result →
     ReductionStep (.stem a) (.stem result)
@@ -214,24 +365,32 @@ inductive ReductionStep : (term output : ValOrRedex) → Prop where
     ReductionStep (.redex a b c items) (.redex a b c newItems)
 
 
-
-
-@[grind cases]
-inductive MultiStepReduction : (term output : ValOrRedex) → Prop where
-  | refl :
-    MultiStepReduction term term
-
-  | rel :
-    ReductionStep term output →
-    MultiStepReduction term output
-
-  | trans :
-    MultiStepReduction term output₁ →
-    MultiStepReduction output₁ output₂ →
-    MultiStepReduction term output₂
+/-- Rewrite rules are deterministic: same inputs give same outputs -/
+theorem Rewrite.deterministic
+  (h₁ : Rewrite a b c out₁)
+  (h₂ : Rewrite a b c out₂)
+  : out₁ = out₂ := by
+  cases h₁ <;> cases h₂ <;> rfl
 
 
 
+-- @[grind cases]
+-- inductive MultiStepReduction : (term output : ValOrRedex) → Prop where
+--   | refl :
+--     MultiStepReduction term term
+
+--   | rel :
+--     ReductionStep term output →
+--     MultiStepReduction term output
+
+--   | trans :
+--     MultiStepReduction term output₁ →
+--     MultiStepReduction output₁ output₂ →
+--     MultiStepReduction term output₂
+
+
+
+def MultiStepReduction := Relation.ReflTransGen ReductionStep
 
 
 theorem MultiStepReduction.confluence
@@ -243,26 +402,35 @@ theorem MultiStepReduction.confluence
     exists c
     simp [*]
     refine .refl
-  | trans a b aih bih =>
+  | tail h r ih =>
     expose_names
-    cases h₂
-    · exists output₂
-      constructor
-      constructor
-      refine .trans a b
+    have ⟨d,prf⟩ := ih h₂
+    refine ⟨d,?_,prf.right⟩
+    have : MultiStepReduction a c_1 := ?_
 
-    ·
-      expose_names
-      have := aih a
-      have := aih (.rel h)
-      have := bih b
+    exact ih this |>.left
 
-      -- apply bih
+    sorry
+  -- | trans a b aih bih =>
+  --   expose_names
+  --   cases h₂
+  --   · exists output₂
+  --     constructor
+  --     constructor
+  --     refine .trans a b
+
+  --   ·
+  --     expose_names
+  --     have := aih a
+  --     have := aih (.rel h)
+  --     have := bih b
+
+  --     -- apply bih
 
 
-  | rel reduct =>
-    induction reduct
-  sorry
+  -- | rel reduct =>
+  --   induction reduct
+  -- sorry
 
 
 
