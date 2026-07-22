@@ -12,11 +12,11 @@ inductive Value : Type where
 
 
 @[grind cases]
-inductive ValOrRedex : Type where
-  | leaf : ValOrRedex
-  | stem : ValOrRedex → ValOrRedex
-  | fork : ValOrRedex → ValOrRedex → ValOrRedex
-  | redex : ValOrRedex → ValOrRedex → ValOrRedex → List ValOrRedex → ValOrRedex
+inductive ValOrRedex
+  | leaf
+  | stem (a : ValOrRedex)
+  | fork (a b : ValOrRedex)
+  | redex (a b c : ValOrRedex) (rest : List ValOrRedex)
   deriving Repr
 
 
@@ -345,6 +345,9 @@ inductive ReductionStep : (term output : ValOrRedex) → Prop where
     Rewrite a b c output →
     ReductionStep (.redex a b c rest) output
 
+
+  -- The congruence rules
+
   | redexFst :
     ReductionStep a resultA →
     ReductionStep (.redex a b c rest) (.redex resultA b c rest)
@@ -597,6 +600,22 @@ inductive Reduces : (input output : Term) → Prop where
   | congr_right {t1 t2 t2' : Term} :
       Reduces t2 t2' →
       Reduces (t1⬝t2) (t1⬝t2')
+
+/-- `t` diverges if every multi-step reduct is still one-step reducible.
+I.e. there is an infinite reduction sequence from `t`. -/
+def Term.Diverges (t : Term) : Prop :=
+  ∀ u, Relation.ReflTransGen Reduces t u → ∃ v, Reduces u v
+
+/-- Not strongly normalizing: some terms diverge.
+
+Intended witness (combinatory Ω), once `⬝` is spec application:
+  `I = Δ ⬝ (Δ ⬝ (Δ ⬝ Δ)) ⬝ (Δ ⬝ Δ)`   -- ≈ S K K
+  `ω = Δ ⬝ (Δ ⬝ I) ⬝ I`               -- ≈ S I I
+  `Ω = ω ⬝ ω`
+Rule 2 (S-like duplication) keeps feeding fresh redexes, so reduction never
+reaches a normal form. -/
+theorem exists_diverging_term : ∃ t : Term, t.Diverges := by
+  sorry
 
 
 
