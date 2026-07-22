@@ -1,6 +1,5 @@
-import Mathlib
-
-
+import Mathlib.Tactic.Tauto
+import Mathlib.Logic.Relation
 
 /-- Static values, that cannot be reduced further, not even their subterms -/
 @[grind cases]
@@ -393,6 +392,22 @@ theorem Rewrite.deterministic
 def MultiStepReduction := Relation.ReflTransGen ReductionStep
 
 
+/-- Confluence of multi-step reduction.
+
+The five triage rules are left-linear and non-overlapping: once the operator
+(and, for 3a–c, the argument) is a value, exactly one rule matches a given
+redex. Rules never pattern-match on a redex, so reducing a subterm cannot flip
+*which* rule applies — it can only delay firing. Divergence is only about
+*where* you step, and those steps commute.
+
+@TODO Proof strategy (do **not** induct blindly on `ReflTransGen`):
+1. Prove a one-step diamond / strip lemma:
+   if `a → b` and `a → c`, then `b` and `c` join;
+   or: if `a → b` and `a ↠ c`, then `∃ d, b ↠ d ∧ c ↠ d`.
+2. Lift that to full confluence.
+Newman’s lemma (local confluence + termination) is the wrong tool here:
+the calculus is Turing-complete, so reduction need not terminate. Use the
+orthogonal-TRS story instead (non-overlap + left-linearity ⇒ confluence). -/
 theorem MultiStepReduction.confluence
   (h₁ : MultiStepReduction a b)
   (h₂ : MultiStepReduction a c)
@@ -491,60 +506,61 @@ instance : DecidableEq Term := Term.decEq
 
 
 
-/-- Left-associatively cons the terms on the right to the term on the left -/
+/-- Current `⬝`: prepends the left term onto the *right* term's child list.
+This is **not** the official multi-child application (see `Term.apply` below). -/
 @[reducible,grind]
 def Term.cons (term : Term) (terms : Term) :=
   match terms with
   | .term terms => Term.term (term :: terms)
 
--- -- Custom Repr instance to display terms with our notation
--- partial def Term.repr : Term → Nat → String
---   | .delta, _ => "Δ"
---   | .app t1 t2, prec =>
---     -- Left associative, precedence 70
---     let s1 := t1.repr 70
---     let s2 := t2.repr 71
---     let result := s1 ++ " ⬝ " ++ s2
---     if prec > 70 then "(" ++ result ++ ")" else result
-
--- instance : Repr Term where
---   reprPrec t prec := t.repr prec
-
-
-
-
--- Notation for Term construction
--- Δ symbol for delta (works in patterns too!)
--- syntax (name := termDelta) "Δ" : term
-
--- Left-associative application notation using ⬝ (white diamond, U+2B1D)
--- (name := ...) makes it work in patterns!
--- syntax:70 (name := termApp) term:71 " ⬝ " term:70 : term
+/-- Spec application: attach `arg` as the rightmost child of `fn`'s root.
+Application itself is left-associative; “to the right” means where the child
+hangs on the tree, i.e. `children ++ [arg]`, not prepending onto `arg`. -/
+@[reducible, grind]
+def Term.apply (fn arg : Term) : Term :=
+  match fn with
+  | .term cs => .term (cs ++ [arg])
 
 @[match_pattern]
 notation "Δ" => Term.term []
 
--- macro_rules
---   | `(Δ) => `(Term.term [])
---   -- | `($t1 ⬝ $t2) => `(Term.term [$t1 ,$t2])
-
-
-
-
 @[inherit_doc, match_pattern] infixl:67 " ⬝ " => Term.cons
--- -- Make Lean display terms using our notation
--- @[app_unexpander Term.term []]
--- def unexpandDelta : Lean.PrettyPrinter.Unexpander := fun _ => `(Δ)
-
--- @[app_unexpander Term.app]
--- def unexpandApp : Lean.PrettyPrinter.Unexpander := fun
---   | `($_ $t1 $t2) => `($t1 ⬝ $t2)
---   | _ => throw ()
+@[inherit_doc, match_pattern] infixl:67 " ▷ " => Term.apply
 
 def x := Δ
 def y := Δ
 def z := Δ
-#eval (Δ⬝Δ⬝((Δ⬝Δ)⬝x⬝(y⬝z)))
+def u := Δ
+def v := Δ
+
+/-! ### Does `⬝` match the official spec? (no — `▷` does)
+
+In the multi-child reading, `△ a b c` is a node whose children are `[a, b, c]`
+(the leading `△` *is* the node, not a child). So:
+- leaf: `△` = `term []`
+- stem `a`: `△ a` = `term [a]`
+- fork `a b`: `△ a b` = `term [a, b]`
+- redex `a b c`: `△ a b c` = `term [a, b, c]`
+
+Rule 1 shape `△ △ y z` = `term [Δ, y, z]`. -/
+
+-- `▷` builds the official shapes
+#guard decide (Δ ▷ Δ = Term.term [Δ])
+#guard decide (Δ ▷ Δ ▷ y = Term.term [Δ, y])
+#guard decide (Δ ▷ Δ ▷ y ▷ z = Term.term [Δ, y, z])
+-- Rule 2: △ (△ x) y z
+#guard decide (Δ ▷ (Δ ▷ x) ▷ y ▷ z = Term.term [Δ ▷ x, y, z])
+-- Rule 3a: △ (△ w x) y △
+#guard decide (Δ ▷ (Δ ▷ Δ ▷ Δ) ▷ y ▷ Δ = Term.term [Δ ▷ Δ ▷ Δ, y, Δ])
+-- Rule 3b/3c argument shapes
+#guard decide (Δ ▷ u = Term.term [u])
+#guard decide (Δ ▷ u ▷ v = Term.term [u, v])
+
+-- Current `⬝` nests instead of growing children on the left root.
+-- #eval below: `⬝` ⇒ `term [term [term [term []]]]`, `▷` ⇒ `term [Δ, y, z]`
+#eval Δ ⬝ Δ ⬝ y ⬝ z
+#eval Δ ▷ Δ ▷ y ▷ z
+#eval (Δ ▷ Δ ▷ ((Δ ▷ Δ) ▷ x ▷ (y ▷ z)))
 
 @[grind cases]
 inductive RewriteRules : (input output : Term) → Prop where
