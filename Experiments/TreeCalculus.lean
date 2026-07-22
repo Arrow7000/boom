@@ -802,7 +802,7 @@ private theorem ValOrRedex.depth_lt_redex_rest_mem (a b c : ValOrRedex) {rest : 
     {x : ValOrRedex} (hx : x ∈ rest) :
     x.depth < ValOrRedex.depth (.redex a b c rest) := by
   induction rest with
-  | nil => nomatch hx
+  | nil => cases hx
   | cons r rs ih =>
     simp [List.mem_cons] at hx
     cases hx with
@@ -876,7 +876,7 @@ private theorem ValOrRedex.depth_lt_redex_rest_forall_head (op arg1 arg2 : ValOr
     (hne : rest ≠ []) :
     ValOrRedex.depth (rest.head hne) < ValOrRedex.depth (.redex op arg1 arg2 rest) := by
   cases rest with
-  | nil => nomatch hne
+  | nil => exact (hne rfl).elim
   | cons a as => simp [List.head_cons]; exact ValOrRedex.depth_lt_redex_rest_head op arg1 arg2 a as
 
 private theorem ValOrRedex.depth_lt_parDepthSum_cons_tail
