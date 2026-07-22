@@ -509,34 +509,26 @@ instance : DecidableEq Term := Term.decEq
 
 
 
-/-- Current `⬝`: prepends the left term onto the *right* term's child list.
-This is **not** the official multi-child application (see `Term.apply` below). -/
-@[reducible,grind]
-def Term.cons (term : Term) (terms : Term) :=
-  match terms with
-  | .term terms => Term.term (term :: terms)
-
 /-- Spec application: attach `arg` as the rightmost child of `fn`'s root.
 Application itself is left-associative; “to the right” means where the child
-hangs on the tree, i.e. `children ++ [arg]`, not prepending onto `arg`. -/
+hangs on the tree, i.e. `children ++ [arg]`. -/
 @[reducible, grind]
 def Term.apply (fn arg : Term) : Term :=
   match fn with
   | .term cs => .term (cs ++ [arg])
 
 @[match_pattern]
-notation "Δ" => Term.term []
+notation "△" => Term.term []
 
-@[inherit_doc, match_pattern] infixl:67 " ⬝ " => Term.cons
-@[inherit_doc, match_pattern] infixl:67 " ▷ " => Term.apply
+@[inherit_doc, match_pattern] infixl:67 " ⬝ " => Term.apply
 
-def x := Δ
-def y := Δ
-def z := Δ
-def u := Δ
-def v := Δ
+def x := △
+def y := △
+def z := △
+def u := △
+def v := △
 
-/-! ### Does `⬝` match the official spec? (no — `▷` does)
+/-! ### Spec multi-child shapes via `⬝`
 
 In the multi-child reading, `△ a b c` is a node whose children are `[a, b, c]`
 (the leading `△` *is* the node, not a child). So:
@@ -545,46 +537,42 @@ In the multi-child reading, `△ a b c` is a node whose children are `[a, b, c]`
 - fork `a b`: `△ a b` = `term [a, b]`
 - redex `a b c`: `△ a b c` = `term [a, b, c]`
 
-Rule 1 shape `△ △ y z` = `term [Δ, y, z]`. -/
+Rule 1 shape `△ △ y z` = `term [△, y, z]`. -/
 
--- `▷` builds the official shapes
-#guard decide (Δ ▷ Δ = Term.term [Δ])
-#guard decide (Δ ▷ Δ ▷ y = Term.term [Δ, y])
-#guard decide (Δ ▷ Δ ▷ y ▷ z = Term.term [Δ, y, z])
+#guard decide (△ ⬝ △ = Term.term [△])
+#guard decide (△ ⬝ △ ⬝ y = Term.term [△, y])
+#guard decide (△ ⬝ △ ⬝ y ⬝ z = Term.term [△, y, z])
 -- Rule 2: △ (△ x) y z
-#guard decide (Δ ▷ (Δ ▷ x) ▷ y ▷ z = Term.term [Δ ▷ x, y, z])
+#guard decide (△ ⬝ (△ ⬝ x) ⬝ y ⬝ z = Term.term [△ ⬝ x, y, z])
 -- Rule 3a: △ (△ w x) y △
-#guard decide (Δ ▷ (Δ ▷ Δ ▷ Δ) ▷ y ▷ Δ = Term.term [Δ ▷ Δ ▷ Δ, y, Δ])
+#guard decide (△ ⬝ (△ ⬝ △ ⬝ △) ⬝ y ⬝ △ = Term.term [△ ⬝ △ ⬝ △, y, △])
 -- Rule 3b/3c argument shapes
-#guard decide (Δ ▷ u = Term.term [u])
-#guard decide (Δ ▷ u ▷ v = Term.term [u, v])
+#guard decide (△ ⬝ u = Term.term [u])
+#guard decide (△ ⬝ u ⬝ v = Term.term [u, v])
 
--- Current `⬝` nests instead of growing children on the left root.
--- #eval below: `⬝` ⇒ `term [term [term [term []]]]`, `▷` ⇒ `term [Δ, y, z]`
-#eval Δ ⬝ Δ ⬝ y ⬝ z
-#eval Δ ▷ Δ ▷ y ▷ z
-#eval (Δ ▷ Δ ▷ ((Δ ▷ Δ) ▷ x ▷ (y ▷ z)))
+#eval △ ⬝ △ ⬝ y ⬝ z
+#eval (△ ⬝ △ ⬝ ((△ ⬝ △) ⬝ x ⬝ (y ⬝ z)))
 
 @[grind cases]
 inductive RewriteRules : (input output : Term) → Prop where
   | one :
-    RewriteRules (Δ⬝Δ⬝y⬝z)
+    RewriteRules (△⬝△⬝y⬝z)
       y
 
   | two :
-    RewriteRules (Δ⬝(Δ⬝x)⬝y⬝z)
+    RewriteRules (△⬝(△⬝x)⬝y⬝z)
       (x⬝z⬝(y⬝z))
 
   | threeA :
-    RewriteRules (Δ⬝(Δ⬝w⬝x)⬝y⬝Δ)
+    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝△)
       w
 
   | threeB :
-    RewriteRules (Δ⬝(Δ⬝w⬝x)⬝y⬝(Δ⬝u))
+    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u))
       (x⬝u)
 
   | threeC :
-    RewriteRules (Δ⬝(Δ⬝w⬝x)⬝y⬝(Δ⬝u⬝v))
+    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u⬝v))
       (y⬝u⬝v)
 
 
@@ -608,9 +596,9 @@ def Term.Diverges (t : Term) : Prop :=
 
 /-- Not strongly normalizing: some terms diverge.
 
-Intended witness (combinatory Ω), once `⬝` is spec application:
-  `I = Δ ⬝ (Δ ⬝ (Δ ⬝ Δ)) ⬝ (Δ ⬝ Δ)`   -- ≈ S K K
-  `ω = Δ ⬝ (Δ ⬝ I) ⬝ I`               -- ≈ S I I
+Intended witness (combinatory Ω):
+  `I = △ ⬝ (△ ⬝ (△ ⬝ △)) ⬝ (△ ⬝ △)`   -- ≈ S K K
+  `ω = △ ⬝ (△ ⬝ I) ⬝ I`               -- ≈ S I I
   `Ω = ω ⬝ ω`
 Rule 2 (S-like duplication) keeps feeding fresh redexes, so reduction never
 reaches a normal form. -/
@@ -636,46 +624,46 @@ def Term.IsNotRewritable (term : Term) := ∀ output, ¬RewriteRules term output
 
 -- Values (irreducible terms) are exactly: leafs, stems, and forks
 @[simp,grind]
-def Term.IsLeaf (t : Term) : Prop := t = Δ
+def Term.IsLeaf (t : Term) : Prop := t = △
 @[simp,grind]
-def Term.IsStem (t : Term) : Prop := ∃ a, t = (Δ⬝a)
+def Term.IsStem (t : Term) : Prop := ∃ a, t = (△⬝a)
 @[simp,grind]
-def Term.IsFork (t : Term) : Prop := ∃ a b, t = (Δ⬝a⬝b)
+def Term.IsFork (t : Term) : Prop := ∃ a b, t = (△⬝a⬝b)
 
 
 
 
--- Helper lemmas to show Δ doesn't match any rewrite rule patterns
-theorem Term.delta_ne_pattern1 : ∀ y z, Δ ≠ Δ ⬝ Δ ⬝ y ⬝ z := by
+-- Helper lemmas to show △ doesn't match any rewrite rule patterns
+theorem Term.delta_ne_pattern1 : ∀ y z, △ ≠ △ ⬝ △ ⬝ y ⬝ z := by
   intro y z heq
-  unfold Term.cons at heq
+  unfold Term.apply at heq
   cases z; rename_i zs
   apply Term.nil_ne_cons
   exact heq
 
-theorem Term.delta_ne_pattern2 : ∀ x y z, Δ ≠ Δ ⬝ (Δ ⬝ x) ⬝ y ⬝ z := by
+theorem Term.delta_ne_pattern2 : ∀ x y z, △ ≠ △ ⬝ (△ ⬝ x) ⬝ y ⬝ z := by
   intro x y z heq
-  unfold Term.cons at heq
+  unfold Term.apply at heq
   cases z; rename_i zs
   apply Term.nil_ne_cons
   exact heq
 
-theorem Term.delta_ne_pattern3a : ∀ w x y, Δ ≠ Δ ⬝ (Δ ⬝ w ⬝ x) ⬝ y ⬝ Δ := by
+theorem Term.delta_ne_pattern3a : ∀ w x y, △ ≠ △ ⬝ (△ ⬝ w ⬝ x) ⬝ y ⬝ △ := by
   intro w x y heq
-  unfold Term.cons at heq
+  unfold Term.apply at heq
   apply Term.nil_ne_cons
   exact heq
 
-theorem Term.delta_ne_pattern3b : ∀ w x y u, Δ ≠ Δ ⬝ (Δ ⬝ w ⬝ x) ⬝ y ⬝ (Δ ⬝ u) := by
+theorem Term.delta_ne_pattern3b : ∀ w x y u, △ ≠ △ ⬝ (△ ⬝ w ⬝ x) ⬝ y ⬝ (△ ⬝ u) := by
   intro w x y u heq
-  unfold Term.cons at heq
+  unfold Term.apply at heq
   cases u; rename_i us
   apply Term.nil_ne_cons
   exact heq
 
-theorem Term.delta_ne_pattern3c : ∀ w x y u v, Δ ≠ Δ ⬝ (Δ ⬝ w ⬝ x) ⬝ y ⬝ (Δ ⬝ u ⬝ v) := by
+theorem Term.delta_ne_pattern3c : ∀ w x y u v, △ ≠ △ ⬝ (△ ⬝ w ⬝ x) ⬝ y ⬝ (△ ⬝ u ⬝ v) := by
   intro w x y u v heq
-  unfold Term.cons at heq
+  unfold Term.apply at heq
   cases v; rename_i vs
   apply Term.nil_ne_cons
   exact heq
@@ -686,7 +674,7 @@ theorem RewriteRules.leaf_irreducible (t : Term) (h : t.IsLeaf) : t.IsNotRewrita
   subst h
   intro output prem
   -- Use the recursor with a motive that gives us an equality to work with
-  refine @RewriteRules.rec (fun input _ _ => input = Δ → False) ?one ?two ?threeA ?threeB ?threeC Δ output prem rfl
+  refine @RewriteRules.rec (fun input _ _ => input = △ → False) ?one ?two ?threeA ?threeB ?threeC △ output prem rfl
   case one => exact fun heq => Term.delta_ne_pattern1 _ _ heq.symm
   case two => exact fun heq => Term.delta_ne_pattern2 _ _ _ heq.symm
   case threeA => exact fun heq => Term.delta_ne_pattern3a _ _ _ heq.symm
@@ -697,11 +685,11 @@ theorem RewriteRules.leaf_irreducible (t : Term) (h : t.IsLeaf) : t.IsNotRewrita
 
 
 
--- Helper lemmas to show Δ⬝x doesn't match any rewrite rule patterns
--- Δ⬝x unfolds to Term.term [x], which has a singleton list
-theorem Term.stem_ne_pattern1 : ∀ x y z, Δ⬝x ≠ Δ⬝Δ⬝y⬝z := by
+-- Helper lemmas to show △⬝x doesn't match any rewrite rule patterns
+-- △⬝x unfolds to Term.term [x], which has a singleton list
+theorem Term.stem_ne_pattern1 : ∀ x y z, △⬝x ≠ △⬝△⬝y⬝z := by
   intro x y z heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases z; rename_i zs
   cases x; rename_i xs
   cases y; rename_i ys
@@ -713,9 +701,9 @@ theorem Term.stem_ne_pattern1 : ∀ x y z, Δ⬝x ≠ Δ⬝Δ⬝y⬝z := by
   · exact List.noConfusion h_inner
   · exact List.noConfusion h_inner
 
-theorem Term.stem_ne_pattern2 : ∀ x x' y z, Δ⬝x ≠ Δ⬝(Δ⬝x')⬝y⬝z := by
+theorem Term.stem_ne_pattern2 : ∀ x x' y z, △⬝x ≠ △⬝(△⬝x')⬝y⬝z := by
   intro x x' y z heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases z; rename_i zs
   cases x; rename_i xs
   cases y; rename_i ys
@@ -728,9 +716,9 @@ theorem Term.stem_ne_pattern2 : ∀ x x' y z, Δ⬝x ≠ Δ⬝(Δ⬝x')⬝y⬝z 
   · exact List.noConfusion h_inner
   · exact List.noConfusion h_inner
 
-theorem Term.stem_ne_pattern3a : ∀ x w x' y, Δ⬝x ≠ Δ⬝(Δ⬝w⬝x')⬝y⬝Δ := by
+theorem Term.stem_ne_pattern3a : ∀ x w x' y, △⬝x ≠ △⬝(△⬝w⬝x')⬝y⬝△ := by
   intro x w x' y heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases x; rename_i xs
   cases y; rename_i ys
   cases x'; rename_i x's
@@ -739,9 +727,9 @@ theorem Term.stem_ne_pattern3a : ∀ x w x' y, Δ⬝x ≠ Δ⬝(Δ⬝w⬝x')⬝y
   injection h_list with h_head h_tail
   simp at h_head
 
-theorem Term.stem_ne_pattern3b : ∀ x w x' y u, Δ⬝x ≠ Δ⬝(Δ⬝w⬝x')⬝y⬝(Δ⬝u) := by
+theorem Term.stem_ne_pattern3b : ∀ x w x' y u, △⬝x ≠ △⬝(△⬝w⬝x')⬝y⬝(△⬝u) := by
   intro x w x' y u heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases u; rename_i us
   cases x; rename_i xs
   cases y; rename_i ys
@@ -754,9 +742,9 @@ theorem Term.stem_ne_pattern3b : ∀ x w x' y u, Δ⬝x ≠ Δ⬝(Δ⬝w⬝x')�
   injection h_head with h_inner
   exact List.noConfusion h_inner
 
-theorem Term.stem_ne_pattern3c : ∀ x w x' y u v, Δ⬝x ≠ Δ⬝(Δ⬝w⬝x')⬝y⬝(Δ⬝u⬝v) := by
+theorem Term.stem_ne_pattern3c : ∀ x w x' y u v, △⬝x ≠ △⬝(△⬝w⬝x')⬝y⬝(△⬝u⬝v) := by
   intro x w x' y u v heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases v; rename_i vs
   cases x; rename_i xs
   cases y; rename_i ys
@@ -774,18 +762,18 @@ theorem RewriteRules.stem_irreducible (t : Term) (h : t.IsStem) : t.IsNotRewrita
   simp [Term.IsStem] at h
   obtain ⟨x, rfl⟩ := h
   intro output prem
-  refine @RewriteRules.rec (fun input _ _ => input = Δ⬝x → False) ?one ?two ?threeA ?threeB ?threeC (Δ⬝x) output prem rfl
+  refine @RewriteRules.rec (fun input _ _ => input = △⬝x → False) ?one ?two ?threeA ?threeB ?threeC (△⬝x) output prem rfl
   case one => exact fun heq => Term.stem_ne_pattern1 _ _ _ heq.symm
   case two => exact fun heq => Term.stem_ne_pattern2 _ _ _ _ heq.symm
   case threeA => exact fun heq => Term.stem_ne_pattern3a _ _ _ _ heq.symm
   case threeB => exact fun heq => Term.stem_ne_pattern3b _ _ _ _ _ heq.symm
   case threeC => exact fun heq => Term.stem_ne_pattern3c _ _ _ _ _ _ heq.symm
 
--- Helper lemmas to show Δ⬝x⬝y doesn't match any rewrite rule patterns
--- Δ⬝x⬝y unfolds to Term.term [x, y], which has a two-element list
-theorem Term.fork_ne_pattern1 : ∀ x y y' z, Δ⬝x⬝y ≠ Δ⬝Δ⬝y'⬝z := by
+-- Helper lemmas to show △⬝x⬝y doesn't match any rewrite rule patterns
+-- △⬝x⬝y unfolds to Term.term [x, y], which has a two-element list
+theorem Term.fork_ne_pattern1 : ∀ x y y' z, △⬝x⬝y ≠ △⬝△⬝y'⬝z := by
   intro x y y' z heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases z; rename_i zs
   cases y; rename_i ys
   cases x; rename_i xs
@@ -793,9 +781,9 @@ theorem Term.fork_ne_pattern1 : ∀ x y y' z, Δ⬝x⬝y ≠ Δ⬝Δ⬝y'⬝z :=
   injection heq with h_list
   simp at h_list
 
-theorem Term.fork_ne_pattern2 : ∀ x y x' y' z, Δ⬝x⬝y ≠ Δ⬝(Δ⬝x')⬝y'⬝z := by
+theorem Term.fork_ne_pattern2 : ∀ x y x' y' z, △⬝x⬝y ≠ △⬝(△⬝x')⬝y'⬝z := by
   intro x y x' y' z heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases z; rename_i zs
   cases y; rename_i ys
   cases x; rename_i xs
@@ -804,9 +792,9 @@ theorem Term.fork_ne_pattern2 : ∀ x y x' y' z, Δ⬝x⬝y ≠ Δ⬝(Δ⬝x')�
   injection heq with h_list
   simp at h_list
 
-theorem Term.fork_ne_pattern3a : ∀ x y w x' y', Δ⬝x⬝y ≠ Δ⬝(Δ⬝w⬝x')⬝y'⬝Δ := by
+theorem Term.fork_ne_pattern3a : ∀ x y w x' y', △⬝x⬝y ≠ △⬝(△⬝w⬝x')⬝y'⬝△ := by
   intro x y w x' y' heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases y; rename_i ys
   cases x; rename_i xs
   cases y'; rename_i y's
@@ -815,9 +803,9 @@ theorem Term.fork_ne_pattern3a : ∀ x y w x' y', Δ⬝x⬝y ≠ Δ⬝(Δ⬝w⬝
   injection heq with h_list
   simp at h_list
 
-theorem Term.fork_ne_pattern3b : ∀ x y w x' y' u, Δ⬝x⬝y ≠ Δ⬝(Δ⬝w⬝x')⬝y'⬝(Δ⬝u) := by
+theorem Term.fork_ne_pattern3b : ∀ x y w x' y' u, △⬝x⬝y ≠ △⬝(△⬝w⬝x')⬝y'⬝(△⬝u) := by
   intro x y w x' y' u heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases u; rename_i us
   cases y; rename_i ys
   cases x; rename_i xs
@@ -827,9 +815,9 @@ theorem Term.fork_ne_pattern3b : ∀ x y w x' y' u, Δ⬝x⬝y ≠ Δ⬝(Δ⬝w�
   injection heq with h_list
   simp at h_list
 
-theorem Term.fork_ne_pattern3c : ∀ x y w x' y' u v, Δ⬝x⬝y ≠ Δ⬝(Δ⬝w⬝x')⬝y'⬝(Δ⬝u⬝v) := by
+theorem Term.fork_ne_pattern3c : ∀ x y w x' y' u v, △⬝x⬝y ≠ △⬝(△⬝w⬝x')⬝y'⬝(△⬝u⬝v) := by
   intro x y w x' y' u v heq
-  simp only [Term.cons] at heq
+  simp only [Term.apply] at heq
   cases v; rename_i vs
   cases y; rename_i ys
   cases x; rename_i xs
@@ -844,7 +832,7 @@ theorem RewriteRules.fork_irreducible (t : Term) (h : t.IsFork) : t.IsNotRewrita
   simp [Term.IsFork] at h
   obtain ⟨x, y, rfl⟩ := h
   intro output prem
-  refine @RewriteRules.rec (fun input _ _ => input = Δ⬝x⬝y → False) ?one ?two ?threeA ?threeB ?threeC (Δ⬝x⬝y) output prem rfl
+  refine @RewriteRules.rec (fun input _ _ => input = △⬝x⬝y → False) ?one ?two ?threeA ?threeB ?threeC (△⬝x⬝y) output prem rfl
   case one => exact fun heq => Term.fork_ne_pattern1 _ _ _ _ heq.symm
   case two => exact fun heq => Term.fork_ne_pattern2 _ _ _ _ _ heq.symm
   case threeA => exact fun heq => Term.fork_ne_pattern3a _ _ _ _ _ heq.symm
@@ -865,20 +853,20 @@ theorem RewriteRules.fork_irreducible (t : Term) (h : t.IsFork) : t.IsNotRewrita
 @[reducible,simp]
 def tryRewrite (t1 t2 t3 t4 : Term) : Option Term :=
   match t1, t2, t3, t4 with
-  -- Rule one: Δ⬝Δ⬝y⬝z → y
-  | Δ, Δ, y, _z => some y
+  -- Rule one: △⬝△⬝y⬝z → y
+  | △, △, y, _z => some y
 
-  -- Rule two: Δ⬝(Δ⬝x)⬝y⬝z → x⬝z⬝(y⬝z)
-  | Δ, .term [x], _y, z => some (Term.term [x, z, Term.term [_y, z]])
+  -- Rule two: △⬝(△⬝x)⬝y⬝z → x⬝z⬝(y⬝z)
+  | △, .term [x], _y, z => some (Term.term [x, z, Term.term [_y, z]])
 
-  -- Rule threeA: Δ⬝(Δ⬝w⬝x)⬝y⬝Δ → w
-  | Δ, .term [w, _x], _y, Δ => some w
+  -- Rule threeA: △⬝(△⬝w⬝x)⬝y⬝△ → w
+  | △, .term [w, _x], _y, △ => some w
 
-  -- Rule threeB: Δ⬝(Δ⬝w⬝x)⬝y⬝(Δ⬝u) → x⬝u
-  | Δ, .term [_w, x], _y, .term [u] => some (Term.term [x, u])
+  -- Rule threeB: △⬝(△⬝w⬝x)⬝y⬝(△⬝u) → x⬝u
+  | △, .term [_w, x], _y, .term [u] => some (Term.term [x, u])
 
-  -- Rule threeC: Δ⬝(Δ⬝w⬝x)⬝y⬝(Δ⬝u⬝v) → y⬝u⬝v
-  | Δ, .term [_w, _x], y, .term [u, v] => some (Term.term [y, u, v])
+  -- Rule threeC: △⬝(△⬝w⬝x)⬝y⬝(△⬝u⬝v) → y⬝u⬝v
+  | △, .term [_w, _x], y, .term [u, v] => some (Term.term [y, u, v])
 
   | .term (.cons _ _), _, _, _ => none
   -- | _ => none
@@ -914,13 +902,13 @@ mutual
   -- Full reduction step
   def Term.reduce (term : Term) : Term :=
     match term with
-    | Δ =>
+    | △ =>
       -- Leaf: return as-is (irreducible)
-      Δ
+      △
 
     | .term terms =>
       match terms with
-      | [] => Δ  -- Should be unreachable, but for completeness
+      | [] => △  -- Should be unreachable, but for completeness
       | [t] => Term.term [t.reduce]
       | [t1, t2] => Term.term [t1.reduce, t2.reduce]
       | [t1, t2, t3] => Term.term [t1.reduce, t2.reduce, t3.reduce]
@@ -952,9 +940,9 @@ end
 
 
 
--- Note: Not ALL terms of the form Δ⬝x⬝y⬝z are reducible - it depends on x's structure
+-- Note: Not ALL terms of the form △⬝x⬝y⬝z are reducible - it depends on x's structure
 -- This is just an example showing that SOME such terms reduce
-theorem RewriteRules.redex_one_reducible : Term.IsRewritable (Δ⬝Δ⬝y⬝z) := by
+theorem RewriteRules.redex_one_reducible : Term.IsRewritable (△⬝△⬝y⬝z) := by
   simp [Term.IsRewritable]
   exact ⟨y, RewriteRules.one⟩
 
@@ -990,20 +978,20 @@ theorem value_classification :
     ∀ (t : Term), t.IsNotRewritable ↔ (t.IsLeaf ∨ t.IsStem ∨ t.IsFork) := by
   sorry
 
--- The "case" combinator: Δ (Δ w x) y can distinguish between the three kinds
+-- The "case" combinator: △ (△ w x) y can distinguish between the three kinds
 -- of values and compute different results for each
-def case_combinator (w x y : Term) : Term := Δ⬝(Δ⬝w⬝x)⬝y
+def case_combinator (w x y : Term) : Term := △⬝(△⬝w⬝x)⬝y
 
 theorem case_on_leaf :
-    ∀ w x y, case_combinator w x y ⬝ Δ ⟶* w := by
+    ∀ w x y, case_combinator w x y ⬝ △ ⟶* w := by
   sorry
 
 theorem case_on_stem :
-    ∀ w x y u, (case_combinator w x y ⬝ (Δ⬝u)) ⟶* (x⬝u) := by
+    ∀ w x y u, (case_combinator w x y ⬝ (△⬝u)) ⟶* (x⬝u) := by
   sorry
 
 theorem case_on_fork :
-    ∀ w x y u v, (case_combinator w x y ⬝ (Δ⬝u⬝v)) ⟶* (y⬝u⬝v) := by
+    ∀ w x y u v, (case_combinator w x y ⬝ (△⬝u⬝v)) ⟶* (y⬝u⬝v) := by
   sorry
 
 -- This demonstrates intensionality: we can write a program (case_combinator)
