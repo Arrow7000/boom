@@ -1,0 +1,13 @@
+name = "Boom"
+version = "0.1.0"
+defaultTargets = ["Boom"]
+
+[[lean_lib]]
+name = "Boom"
+srcDir = "src"
+roots = ["TreeCalculus"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.26.0"

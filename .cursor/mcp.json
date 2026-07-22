@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "lean-lsp": {
+      "command": "/nix/var/nix/profiles/default/bin/nix-shell",
+      "args": [
+        "~/dev/lean-lsp-mcp/shell.nix",
+        "--run",
+        "uvx lean-lsp-mcp"
+      ]
+    }
+  }
+}

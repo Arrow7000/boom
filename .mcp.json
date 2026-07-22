@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "lean-lsp": {
+      "type": "stdio",
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "LEAN_LOG_LEVEL=DEBUG /Users/aron/dev/lean-lsp-mcp/.venv/bin/python -m lean_lsp_mcp --transport stdio 2>/tmp/lean-lsp-mcp.log"
+      ],
+      "env": {}
+    }
+  }
+}

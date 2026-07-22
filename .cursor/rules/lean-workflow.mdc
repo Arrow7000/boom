@@ -1,0 +1,44 @@
+---
+description: "Rules for working with Lean files in this project"
+globs:
+  - "**/*.lean"
+alwaysApply: true
+---
+
+<!-- @format -->
+
+# Lean Workflow Rules
+
+## Don't Run Lean Builds
+
+Don't try to run a Lean build yourself. Looking at lints and errors should be all you need.
+
+## Wait for Type Checking After Edits
+
+For long Lean files, compilation can take time. Even if your code has errors, there may not be any lints available immediately until Lean has finished type checking.
+
+**Default behavior**: Don't use `sleep` unless needed. Lean only recompiles from the changed line onwards, so small localized changes should show lints quickly.
+
+**When to wait**: If the user tells you that things are slow, or if your changes span a large range of lines (e.g., modifying a long function/theorem where changes need to propagate down), use `sleep <x>` where `x` is roughly the number of affected lines divided by 1000.
+
+**Complexity factors**: Some things increase compile times significantly:
+
+- `grind` tactic usage
+- Mutually recursive functions or theorems
+- Large proof terms
+
+In these cases, err on the side of waiting longer. Waiting an unnecessary 10 seconds is better than erroneously thinking everything's fine.
+
+## Focus Only on Relevant Lints and Errors
+
+Even if there are many lint warnings or errors for a file, only address the ones that are relevant to the specific thing you are working on. Disregard unrelated issues for the purpose of your current task.
+
+## Avoid Shell Commands
+
+Avoid running shell commands unless necessary. Cursor agent mode enables you to search in files, grep things, etc., without actually running any commands manually. Use the built-in tools instead.
+
+## Handling Shadowed Variables
+
+Don't be afraid of shadowed variables. You have a tendency to try to work around them by hoping unification will figure out what you mean, e.g. `have p : MyRelation thing _ := ...` but unless the hypothesis body is entirely explicit, this will likely not work because Lean has no idea what you're trying to prove. It only makes sense to have placeholders in _values_ when Lean can likely figure out what you want by unification from other props you are providing that contain references to the value. Like e.g. calling `f _ isin` when `f : ∀ i ∈ v, p i` and `isin : x ∈ v`. But not when the entire thing you are trying to prove is missing. In the earlier example, if you don't even provide the name of the value whose relation to `thing` you are trying to prove, there's no way Lean is going to be able to help you, and there is likely no way around just providing this value by name.
+
+The way to tackle this is either targeted renamings `rename_i _ h _` or, since that tends to be quite fragile and hard to predict which values you are renaming, `expose_names` which mass-renames everything in scope. It will often rename arbitrary hypotheses to `h`, `h_1`, `h_2`, and so on. Whereas named values that are shadowed it will often append these numbered suffixes to their original names. So e.g. `ctx†` becomes `ctx_1`, `ctx_2`, and so on. When you expose names, since you have no way to view the proof state at a specific point, feel free to make a guess as to what the assigned name is and reference that in your code. If you guess the wrong name that's totally fine. You will likely find that out in the resulting lint errors, at which point iterate accordingly.
