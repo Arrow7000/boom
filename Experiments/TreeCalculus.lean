@@ -1367,14 +1367,14 @@ def Term.decEq (a b : Term) : Decidable (a = b) :=
     · simp
 
 
-@[grind, simp]
+@[grind ., simp]
 theorem Term.nil_ne_cons : ∀ (a : Term) (as : List Term), Term.term [] ≠ Term.term (a :: as) := by
   intro a as h
   injection h with h'
   exact List.noConfusion h'
 
 -- Mark term constructor as injective for simp
-@[simp, grind]
+@[simp, grind =]
 theorem Term.term_injective {xs ys : List Term} : Term.term xs = Term.term ys ↔ xs = ys := by
   constructor
   · intro h; injection h
@@ -1525,21 +1525,21 @@ def Term.IsFork (t : Term) : Prop := ∃ a b, t = (△⬝a⬝b)
 
 -- Leaf/stem/fork are not rewrite-rule redexes (arity mismatch; `cases` on RewriteRules).
 
-@[grind]
+@[grind →]
 theorem RewriteRules.leaf_irreducible (t : Term) (h : t.IsLeaf) : t.IsNotRewritable := by
   simp [Term.IsLeaf] at h
   subst h
   intro output prem
   cases prem
 
-@[grind]
+@[grind →]
 theorem RewriteRules.stem_irreducible (t : Term) (h : t.IsStem) : t.IsNotRewritable := by
   simp [Term.IsStem] at h
   obtain ⟨x, rfl⟩ := h
   intro output prem
   cases prem
 
-@[grind]
+@[grind →]
 theorem RewriteRules.fork_irreducible (t : Term) (h : t.IsFork) : t.IsNotRewritable := by
   simp [Term.IsFork] at h
   obtain ⟨x, y, rfl⟩ := h
