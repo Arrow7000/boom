@@ -3,6 +3,7 @@ import TriageInspection
 import TriageGraph
 import Mathlib.Data.List.Nodup
 import Mathlib.Data.List.Enum
+import Mathlib.Data.List.Sigma
 
 /-!
 An executable, wire-ID-free model of the netties reducer. It allocates fresh
@@ -399,6 +400,49 @@ theorem Net.replace_freshIds {net : Net} (h : net.freshIds = true)
   · rcases List.mem_map.mp hnew with ⟨⟨kind, index⟩, hmem, heq⟩
     subst entry
     exact hNew (kind, index) hmem
+
+theorem Net.replace_ids_nodup {net : Net}
+    (hIds : (net.agents.map Prod.fst).Nodup)
+    (hFresh : net.freshIds = true) (rule : Rule) (left right : Nat) :
+    ((net.replace rule left right).agents.map Prod.fst).Nodup := by
+  let oldAgents := net.agents.filter
+    (fun entry => entry.1 != left && entry.1 != right)
+  let newAgents := rule.agents.zipIdx.map
+    (fun (kind, index) => (net.nextId + index, kind))
+  have hOldN : (oldAgents.map Prod.fst).Nodup :=
+    hIds.sublist ((List.filter_sublist).map Prod.fst)
+  have hIndex :
+      (rule.agents.zipIdx.map (fun entry => net.nextId + entry.2)).Nodup := by
+    have hAddition : Function.Injective (fun i : Nat => net.nextId + i) := by
+      intro a b h
+      exact Nat.add_left_cancel h
+    simpa only [List.map_map, Function.comp_def] using
+      (List.nodup_zipIdx_map_snd rule.agents).map hAddition
+  have hNewN : (newAgents.map Prod.fst).Nodup := by
+    simpa [newAgents, List.map_map, Function.comp_def] using hIndex
+  have hOldBound : ∀ id ∈ oldAgents.map Prod.fst, id < net.nextId := by
+    intro id hid
+    rcases List.mem_map.mp hid with ⟨entry, hentry, heq⟩
+    subst id
+    have hmem := (List.mem_filter.mp hentry).1
+    have h := hFresh
+    simp only [Net.freshIds, List.all_eq_true, decide_eq_true_eq] at h
+    exact h entry hmem
+  have hNewBound : ∀ id ∈ newAgents.map Prod.fst, net.nextId ≤ id := by
+    intro id hid
+    rcases List.mem_map.mp hid with ⟨entry, hentry, heq⟩
+    rcases List.mem_map.mp hentry with ⟨⟨kind, index⟩, _, hpair⟩
+    subst entry
+    subst id
+    exact Nat.le_add_right ..
+  have hDisj : (oldAgents.map Prod.fst).Disjoint
+      (newAgents.map Prod.fst) := by
+    rw [List.disjoint_left]
+    intro id hold hnew
+    exact Nat.not_le_of_gt (hOldBound id hold) (hNewBound id hnew)
+  rw [Net.replace_agents]
+  simpa only [List.map_append] using
+    (List.nodup_append'.2 ⟨hOldN, hNewN, hDisj⟩)
 
 def Net.firstRedex (net : Net) : Option (Rule × Nat × Nat) :=
   (net.wires.filterMap fun (a, b) =>
