@@ -88,7 +88,8 @@ whole-splice matching theorem remains open: it must still prove that those
 endpoints are paired exactly once by `spliceStarts`. A generic reverse-chain
 lemma now gives uniqueness of predecessor-free starts reaching one terminal
 interface state; the bridge from terminal interface states to real wire
-endpoints is the next step.
+endpoints is the next step. The old and replacement boundary layers are also
+proved disjoint on real ports, using the fresh ID bound.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.

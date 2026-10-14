@@ -743,4 +743,40 @@ theorem oldLayer_iface_mem_ruleIfaces {net : Net}
             (Or.inr (List.mem_map.mpr ⟨i, List.mem_range.mpr hi, rfl⟩))
         · simp [Node.fromOld, hidl, hidr] at heq
 
+theorem oldLayer_real_used {net : Net} {left right : Nat}
+    {end_ : TriageConcrete.End}
+    (hmem : Node.real end_ ∈ layerEnds (oldLayer net left right)) :
+    end_ ∈ net.used := by
+  rw [oldLayer_ends] at hmem
+  rcases List.mem_map.mp hmem with ⟨source, hsource, heq⟩
+  have hsourceUsed : source ∈ net.used :=
+    ((List.filter_sublist).flatMap _ |>.trans
+      ((List.filter_sublist).flatMap _)).subset hsource
+  have hsame : source = end_ := by
+    cases source with
+    | free name => simpa [Node.fromOld] using heq
+    | agent id slot =>
+        by_cases hleft : id = left
+        · simp [Node.fromOld, hleft] at heq
+        · by_cases hright : id = right
+          · have hne : right ≠ left := by
+              intro h
+              exact hleft (hright.trans h)
+            simp [Node.fromOld, hright, hne] at heq
+          · simpa [Node.fromOld, hleft, hright] using heq
+  exact hsame ▸ hsourceUsed
+
+theorem old_rule_real_disjoint {net : Net} (hvalid : net.valid = true)
+    (rule : Rule) (left right : Nat) (end_ : TriageConcrete.End)
+    (hold : Node.real end_ ∈ layerEnds (oldLayer net left right))
+    (hnew : Node.real end_ ∈ layerEnds (ruleLayer rule net.nextId)) :
+    False := by
+  have hused := oldLayer_real_used hold
+  cases end_ with
+  | free name => exact ruleLayer_no_free hnew
+  | agent id slot =>
+      have hlt := net_used_agent_old hvalid hused
+      have hge := ruleLayer_real_fresh hnew
+      omega
+
 end TriageBoundary
