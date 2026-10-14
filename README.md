@@ -83,19 +83,24 @@ are unique. Its interface states never repeat. For an applicable concrete
 rule, every terminating boundary walk fits within the fuel used by
 `Net.replace`. A finite injective transition argument also proves that every
 walk starting at an exposed real endpoint terminates at another real endpoint
-within that fuel. Separate closed interface loops can vanish. The resulting
-whole-splice matching theorem remains open: it must still prove that those
-endpoints are paired exactly once by `spliceStarts`. A generic reverse-chain
-lemma now gives uniqueness of predecessor-free starts reaching one terminal
-interface state; the bridge from terminal interface states to real wire
-endpoints is the next step. The old and replacement boundary layers are also
+within that fuel. Separate closed interface loops can vanish. A generic
+reverse-chain lemma gives uniqueness of predecessor-free starts reaching one
+terminal interface state. The old and replacement boundary layers are also
 proved disjoint on real ports, using the fresh ID bound.
 
 `TriageSplicePaths.lean` connects walks to their real endpoints. Under the two
 matching invariants and disjointness of real ports, its path relation is
 symmetric, gives each source a unique target, and cannot connect a port to
-itself. These properties still need to be transferred to the concrete output
-list and its removal of duplicate wires.
+itself.
+
+`TriageSplice.lean` now proves that transfer. The duplicate filter preserves
+endpoint coverage and produces a matching for a symmetric relation with
+unique, distinct partners. Applied to `spliceStarts`, the result proves that
+every exposed boundary port is used exactly once for every applicable rule
+on a valid net. The whole-net preservation theorem must still combine this
+boundary matching with retained old wires and direct replacement wires,
+and show that the resulting ports are exactly those of the surviving and
+created agents.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
