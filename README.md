@@ -90,6 +90,12 @@ lemma now gives uniqueness of predecessor-free starts reaching one terminal
 interface state; the bridge from terminal interface states to real wire
 endpoints is the next step. The old and replacement boundary layers are also
 proved disjoint on real ports, using the fresh ID bound.
+
+`TriageSplicePaths.lean` connects walks to their real endpoints. Under the two
+matching invariants and disjointness of real ports, its path relation is
+symmetric, gives each source a unique target, and cannot connect a port to
+itself. These properties still need to be transferred to the concrete output
+list and its removal of duplicate wires.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
