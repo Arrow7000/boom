@@ -119,9 +119,12 @@ A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
 
-The remaining proof obligation is a simulation between concrete net rewrites
-and `TriageMachine.Step`, including the administrative copy and erase steps.
-The current theorems do not establish semantic correctness of arbitrary nets.
+The remaining semantic obligations are confluence of concrete rewrites up to
+renaming allocated agents and reordering wire lists, and a simulation between
+concrete net rewrites and `TriageMachine.Step`, including the administrative
+copy and erase steps. That simulation must transfer the abstract structural
+inspection theorems to concrete execution. Universal graph validity does not
+yet establish agreement of outputs under arbitrary reduction schedules.
 
 ## References
 
