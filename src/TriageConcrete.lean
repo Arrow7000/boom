@@ -1,5 +1,7 @@
 import TriageRuleProperties
 import TriageInspection
+import TriageGraph
+import Mathlib.Data.List.Nodup
 
 /-!
 An executable, wire-ID-free model of the netties reducer. It allocates fresh
@@ -19,6 +21,9 @@ inductive End where
 
 abbrev Wire := End × End
 
+def wireEnds (wires : List Wire) : List End :=
+  wires.flatMap fun (a, b) => [a, b]
+
 structure Net where
   agents : List (Nat × Kind) := []
   wires : List Wire := []
@@ -35,6 +40,124 @@ def neighborIn : List Wire → End → Option End
       else if end_ = b then some a
       else neighborIn rest end_
 
+theorem left_mem_wireEnds {wires : List Wire} {a b : End}
+    (h : (a, b) ∈ wires) : a ∈ wireEnds wires := by
+  simp only [wireEnds, List.mem_flatMap]
+  exact ⟨(a, b), h, by simp⟩
+
+theorem right_mem_wireEnds {wires : List Wire} {a b : End}
+    (h : (a, b) ∈ wires) : b ∈ wireEnds wires := by
+  simp only [wireEnds, List.mem_flatMap]
+  exact ⟨(a, b), h, by simp⟩
+
+/-- In a matching edge list, the lookup returns the other endpoint of every
+listed edge. -/
+theorem neighborIn_of_mem {wires : List Wire} {a b : End}
+    (hn : (wireEnds wires).Nodup) (h : (a, b) ∈ wires) :
+    neighborIn wires a = some b := by
+  induction wires with
+  | nil => cases h
+  | cons wire rest ih =>
+      rcases wire with ⟨x, y⟩
+      change (x :: y :: wireEnds rest).Nodup at hn
+      have hx := List.nodup_cons.mp hn
+      have hy := List.nodup_cons.mp hx.2
+      rcases List.mem_cons.mp h with hfirst | hrest
+      · have hxy : a = x ∧ b = y := Prod.mk.inj hfirst
+        rcases hxy with ⟨rfl, rfl⟩
+        simp [neighborIn]
+      · have ha := left_mem_wireEnds hrest
+        have hax : a ≠ x := by
+          intro heq
+          exact hx.1 (List.mem_cons_of_mem _ (heq ▸ ha))
+        have hay : a ≠ y := by
+          intro heq
+          exact hy.1 (heq ▸ ha)
+        simpa [neighborIn, hax, hay] using ih hy.2 hrest
+
+theorem neighborIn_of_mem_right {wires : List Wire} {a b : End}
+    (hn : (wireEnds wires).Nodup) (h : (a, b) ∈ wires) :
+    neighborIn wires b = some a := by
+  induction wires with
+  | nil => cases h
+  | cons wire rest ih =>
+      rcases wire with ⟨x, y⟩
+      change (x :: y :: wireEnds rest).Nodup at hn
+      have hx := List.nodup_cons.mp hn
+      have hy := List.nodup_cons.mp hx.2
+      rcases List.mem_cons.mp h with hfirst | hrest
+      · have hxy : a = x ∧ b = y := Prod.mk.inj hfirst
+        have hne : y ≠ x := by
+          intro heq
+          exact hx.1 (List.mem_cons.mpr (Or.inl heq.symm))
+        rcases hxy with ⟨rfl, rfl⟩
+        simp [neighborIn, hne]
+      · have hb := right_mem_wireEnds hrest
+        have hbx : b ≠ x := by
+          intro heq
+          exact hx.1 (List.mem_cons_of_mem _ (heq ▸ hb))
+        have hby : b ≠ y := by
+          intro heq
+          exact hy.1 (heq ▸ hb)
+        simpa [neighborIn, hbx, hby] using ih hy.2 hrest
+
+theorem neighborIn_sound {wires : List Wire} {a b : End}
+    (h : neighborIn wires a = some b) :
+    (a, b) ∈ wires ∨ (b, a) ∈ wires := by
+  induction wires with
+  | nil => simp [neighborIn] at h
+  | cons wire rest ih =>
+      rcases wire with ⟨x, y⟩
+      simp only [neighborIn] at h
+      by_cases hax : a = x
+      · simp [hax] at h
+        subst b
+        left
+        exact List.mem_cons.mpr (Or.inl (by simp [hax]))
+      · simp only [if_neg hax] at h
+        by_cases hay : a = y
+        · simp [hay] at h
+          subst b
+          right
+          exact List.mem_cons.mpr (Or.inl (by simp [hay]))
+        · simp only [if_neg hay] at h
+          rcases ih h with hleft | hright
+          · exact Or.inl (List.mem_cons_of_mem _ hleft)
+          · exact Or.inr (List.mem_cons_of_mem _ hright)
+
+theorem neighborIn_symmetric {wires : List Wire} {a b : End}
+    (hn : (wireEnds wires).Nodup)
+    (h : neighborIn wires a = some b) :
+    neighborIn wires b = some a := by
+  rcases neighborIn_sound h with hab | hba
+  · exact neighborIn_of_mem_right hn hab
+  · exact neighborIn_of_mem hn hba
+
+theorem wire_endpoints_ne {wires : List Wire} {a b : End}
+    (hn : (wireEnds wires).Nodup) (h : (a, b) ∈ wires) : a ≠ b := by
+  have hpair : ([a, b] : List End).Nodup :=
+    (List.nodup_flatMap.mp hn).1 (a, b) h
+  simpa using hpair
+
+theorem neighborIn_irreflexive {wires : List Wire} {a : End}
+    (hn : (wireEnds wires).Nodup) : neighborIn wires a ≠ some a := by
+  intro h
+  rcases neighborIn_sound h with hwire | hwire
+  · exact (wire_endpoints_ne hn hwire) rfl
+  · exact (wire_endpoints_ne hn hwire) rfl
+
+theorem neighborIn_total {wires : List Wire} {end_ : End}
+    (hn : (wireEnds wires).Nodup) (h : end_ ∈ wireEnds wires) :
+    ∃ other, neighborIn wires end_ = some other := by
+  rcases List.mem_flatMap.mp h with ⟨wire, hwire, hend⟩
+  rcases wire with ⟨a, b⟩
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hend
+  rcases hend with heq | heq
+  · subst end_
+    exact ⟨b, neighborIn_of_mem hn hwire⟩
+  · subst end_
+    exact ⟨a, neighborIn_of_mem_right hn hwire⟩
+
 def Net.neighbor (net : Net) (end_ : End) : Option End :=
   neighborIn net.wires end_
 
@@ -43,7 +166,7 @@ def Net.expected (net : Net) : List End :=
     (List.range (kind.arity + 1)).map (End.agent id)) ++ [.free 0]
 
 def Net.used (net : Net) : List End :=
-  net.wires.flatMap fun (a, b) => [a, b]
+  wireEnds net.wires
 
 /-- Every live port, including the one external result port, appears in
 exactly one wire, and all allocated agent IDs are distinct. -/
@@ -52,6 +175,86 @@ def Net.wellFormed (net : Net) : Bool :=
   decide net.used.Nodup &&
   net.used.all (fun end_ => net.expected.any (fun expected => decide (end_ = expected))) &&
   net.expected.all (fun end_ => net.used.any (fun used => decide (end_ = used)))
+
+theorem Net.wellFormed_iff (net : Net) : net.wellFormed = true ↔
+    (net.agents.map Prod.fst).Nodup ∧
+    net.used.Nodup ∧
+    (∀ end_ ∈ net.used, end_ ∈ net.expected) ∧
+    (∀ end_ ∈ net.expected, end_ ∈ net.used) := by
+  simp [Net.wellFormed, List.all_eq_true, List.any_eq_true, and_assoc]
+
+theorem Net.wellFormed_nodup {net : Net} (h : net.wellFormed = true) :
+    (wireEnds net.wires).Nodup := by
+  exact (net.wellFormed_iff.mp h).2.1
+
+theorem Net.expected_has_neighbor {net : Net} (h : net.wellFormed = true)
+    {end_ : End} (hlegal : end_ ∈ net.expected) :
+    ∃ other, net.neighbor end_ = some other := by
+  have hused := (net.wellFormed_iff.mp h).2.2.2 end_ hlegal
+  exact neighborIn_total (net.wellFormed_nodup h) hused
+
+def endToGraph : End → TriageGraph.End
+  | .agent id slot => .agent id slot
+  | .free id => .free id
+
+def endFromGraph : TriageGraph.End → End
+  | .agent id slot => .agent id slot
+  | .free id => .free id
+
+theorem endFromTo (end_ : End) : endFromGraph (endToGraph end_) = end_ := by
+  cases end_ <;> rfl
+
+theorem endToFrom (end_ : TriageGraph.End) :
+    endToGraph (endFromGraph end_) = end_ := by
+  cases end_ <;> rfl
+
+/-- A checked concrete edge list supplies the symmetric, irreflexive partner
+function used by the abstract port-graph lemmas. -/
+def Net.toGraph (net : Net) (h : net.wellFormed = true) : TriageGraph.Net where
+  kind := net.kind?
+  isFree := fun id => decide (id = 0)
+  partner := fun end_ => (net.neighbor (endFromGraph end_)).map endToGraph
+  symmetric := by
+    intro a b hab
+    have hconcrete : net.neighbor (endFromGraph a) =
+        some (endFromGraph b) := by
+      simpa [endFromTo] using congrArg (Option.map endFromGraph) hab
+    have hs := neighborIn_symmetric (net.wellFormed_nodup h) hconcrete
+    simpa [Net.neighbor, endToFrom] using congrArg (Option.map endToGraph) hs
+  irreflexive := by
+    intro a haa
+    have hconcrete : net.neighbor (endFromGraph a) =
+        some (endFromGraph a) := by
+      simpa [endFromTo] using congrArg (Option.map endFromGraph) haa
+    exact neighborIn_irreflexive (net.wellFormed_nodup h) hconcrete
+
+def Net.Active (net : Net) (left right : Nat) : Prop :=
+  (∃ kind, net.kind? left = some kind) ∧
+  (∃ kind, net.kind? right = some kind) ∧
+  net.neighbor (.agent left 0) = some (.agent right 0)
+
+@[simp] theorem map_end_agent_iff (option : Option End) (id slot : Nat) :
+    option.map endToGraph = some (TriageGraph.End.agent id slot) ↔
+      option = some (End.agent id slot) := by
+  cases option with
+  | none => simp
+  | some end_ => cases end_ <;> simp [endToGraph]
+
+theorem Net.active_iff_graph {net : Net} (h : net.wellFormed = true)
+    {left right : Nat} :
+    net.Active left right ↔ (net.toGraph h).Active left right := by
+  simp only [Net.Active, TriageGraph.Net.Active, Net.toGraph,
+    endFromGraph, map_end_agent_iff]
+
+/-- The generic active-pair disjointness theorem now applies to the concrete
+edge-list representation whenever its invariant holds. -/
+theorem Net.active_disjoint_or_equal {net : Net} (h : net.wellFormed = true)
+    {a b c d : Nat} (hab : net.Active a b) (hcd : net.Active c d)
+    (hshare : a = c ∨ a = d ∨ b = c ∨ b = d) :
+    (a = c ∧ b = d) ∨ (a = d ∧ b = c) := by
+  exact TriageGraph.Net.Active.disjoint_or_equal
+    ((net.active_iff_graph h).mp hab)
+    ((net.active_iff_graph h).mp hcd) hshare
 
 def Net.fresh (net : Net) (kind : Kind) : Nat × Net :=
   (net.nextId, { net with

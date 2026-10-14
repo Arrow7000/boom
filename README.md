@@ -63,6 +63,9 @@ up to six leaves: each abstract run finishes, each concrete trace stays well
 formed, and its final tree matches the abstract result with no active pairs.
 This finite check is evidence for the model, not the universal simulation
 theorem.
+For any concrete net satisfying its wellformedness check, the edge lookup is
+proved total on live ports, symmetric, and irreflexive. Such a net maps into
+`TriageGraph.Net`, so its distinct active pairs are formally disjoint.
 
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
