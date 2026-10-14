@@ -70,6 +70,9 @@ The stronger executable `valid` check also tracks fresh ID allocation, and a
 general theorem proves that every rule replacement preserves that ID bound
 and cannot duplicate a live agent ID. The remaining generic preservation
 lemma is for the alternating wire splice across the rule boundary.
+A separate bounded check explores every redex choice in one copying net; each
+schedule terminates within 40 interactions at the same tree and keeps the
+stronger validity invariant throughout.
 
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.

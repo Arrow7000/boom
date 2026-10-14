@@ -444,8 +444,8 @@ theorem Net.replace_ids_nodup {net : Net}
   simpa only [List.map_append] using
     (List.nodup_append'.2 ⟨hOldN, hNewN, hDisj⟩)
 
-def Net.firstRedex (net : Net) : Option (Rule × Nat × Nat) :=
-  (net.wires.filterMap fun (a, b) =>
+def Net.redexChoices (net : Net) : List (Rule × Nat × Nat) :=
+  net.wires.filterMap fun (a, b) =>
     match a, b with
     | .agent first 0, .agent second 0 => do
         let firstKind ← net.kind? first
@@ -453,7 +453,10 @@ def Net.firstRedex (net : Net) : Option (Rule × Nat × Nat) :=
         let rule ← rules.find? fun rule => accepts rule firstKind secondKind
         if rule.left == firstKind then some (rule, first, second)
         else some (rule, second, first)
-    | _, _ => none).head?
+    | _, _ => none
+
+def Net.firstRedex (net : Net) : Option (Rule × Nat × Nat) :=
+  net.redexChoices.head?
 
 def Net.noActivePairs (net : Net) : Bool :=
   net.wires.all fun (a, b) =>
@@ -514,6 +517,17 @@ def Net.outputSyntax (net : Net) (fuel : Nat) : Option Syntax := do
   let root ← net.neighbor (.free 0)
   net.readRoot fuel root
 
+def Net.allSchedulesReach (expected : Syntax) : Nat → Net → Bool
+  | 0, net =>
+      net.valid && net.noActivePairs &&
+      (net.outputSyntax 100 == some expected)
+  | fuel + 1, net =>
+      net.valid &&
+      match net.redexChoices with
+      | [] => net.noActivePairs && (net.outputSyntax 100 == some expected)
+      | choices => choices.all fun (rule, left, right) =>
+          (net.replace rule left right).allSchedulesReach expected fuel
+
 def headSyntax : Head → Syntax
   | .leaf => .leaf
   | .stem child => TriageMachine.stem child
@@ -564,6 +578,18 @@ theorem demo_trace_wellFormed :
 theorem demo_output :
     ((initial demo).run 100).outputSyntax 100 =
       some (TriageMachine.stem .leaf) := by
+  native_decide
+
+def copyingSource : Syntax :=
+  .app (TriageMachine.fork (TriageMachine.stem .leaf) .leaf)
+    (TriageMachine.stem .leaf)
+
+/-- Bounded exploration of every redex choice, including interleavings of
+evaluation and copying, in a nontrivial closed net. -/
+theorem copying_all_schedules :
+    (initial copyingSource).allSchedulesReach
+      (TriageMachine.fork (TriageMachine.stem .leaf)
+        (TriageMachine.stem (TriageMachine.stem .leaf))) 40 = true := by
   native_decide
 
 end TriageConcrete
