@@ -129,6 +129,28 @@ even when auxiliary wires connect the two pairs. Both orders are therefore
 valid executable schedules, with the same final allocation counter. Equality
 of their resulting wire graphs remains to be proved.
 
+`TriageAllocation.lean` constructs the explicit bijection swapping the two
+fresh allocation blocks. Under that bijection, the complete agent lists of
+two independent replacements are permutations of one another and all kind
+lookups agree. The outstanding local diamond concerns wire connectivity.
+
+`TriageEncoding.lean` relates raw source trees to concrete agents and wires.
+For every finite syntax, the source builder establishes this relation, and
+reading the source side of the initial evaluator reconstructs the original
+syntax exactly with sufficient fuel. Representation is unique and preserved
+by graph isomorphism. A represented source whose root is outside a contracted
+active pair is preserved exactly by the rewrite: its descendants have their
+principal ports attached to auxiliary ports and cannot be active pairs. This
+proves stability of raw source payloads, including syntactically reducible
+payloads. Evaluator and continuation simulation still need separate proofs.
+
+`TriageLocalSemantics.lean` connects declarative boundary routes to actual
+post-rewrite neighbor lookups. Universal local semantic proofs cover
+`Eval/Leaf`, `Call/Leaf`, and `Call/Stem` in arbitrary valid surrounding nets:
+the latter two expose a stem or fork retaining the exact raw source arguments.
+These local interactions are the first pieces of the concrete machine
+simulation; they do not yet compose into a complete simulation theorem.
+
 The remaining semantic obligations are confluence of concrete rewrites up to
 renaming allocated agents and reordering wire lists, and a simulation between
 concrete net rewrites and `TriageMachine.Step`, including the administrative
