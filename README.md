@@ -55,6 +55,15 @@ active pair and checks that any active pair wired entirely within a rule's
 replacement has an applicable exported rule. Connections through the
 surrounding net remain part of the whole-net simulation obligation.
 
+`TriageConcrete.lean` is an executable model of whole-net replacement using
+the exported rules. It follows alternating old and new wires through each
+rule boundary, checks a total one-wire-per-port graph invariant, and reads
+the output tree. A finite Lean check covers all 65 closed source terms with
+up to six leaves: each abstract run finishes, each concrete trace stays well
+formed, and its final tree matches the abstract result with no active pairs.
+This finite check is evidence for the model, not the universal simulation
+theorem.
+
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
 The current theorems do not establish semantic correctness of arbitrary nets.
