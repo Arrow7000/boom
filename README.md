@@ -39,6 +39,10 @@ and `y u v`, that the unused inputs go to `Erase`, and that the result is
 wired to the original continuation. These are local template theorems;
 the whole-net simulation still needs the rewrite semantics.
 
+`TriageResources.lean` proves that finite copy/erase task trees terminate
+under any order of administrative steps. It abstracts from the copied output
+nets and will need to be connected to the concrete `Dup`/`Erase` rewrites.
+
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
 The current theorems do not establish semantic correctness of arbitrary nets.
