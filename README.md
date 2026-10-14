@@ -151,6 +151,20 @@ the latter two expose a stem or fork retaining the exact raw source arguments.
 These local interactions are the first pieces of the concrete machine
 simulation; they do not yet compose into a complete simulation theorem.
 
+`TriageDispatch.lean` proves the concrete structural inspection step for all
+three head shapes in arbitrary valid surrounding nets. Given raw inputs
+`w`, `x`, and `y`, the actual exported replacement starts evaluation of
+`w`, `x u`, or `y u v`, retaining the exact raw child syntax. Its combined
+`dispatch_from_inputs` theorem also establishes the corresponding abstract
+machine transition; `dispatch_tc_sound` connects that transition to the
+original TC term reduction relation under any abstract continuation. The
+continuation lies outside the replaced pair as a
+consequence of the input representations and matching invariant; no extra
+separation assumption is needed. This is a universal local simulation of
+inspection, with no requirement that children be normalized. It does not
+yet prove reachability of every such represented state, simulate the full
+continuation stack, or discharge the resulting erasure tasks.
+
 The remaining semantic obligations are confluence of concrete rewrites up to
 renaming allocated agents and reordering wire lists, and a simulation between
 concrete net rewrites and `TriageMachine.Step`, including the administrative
