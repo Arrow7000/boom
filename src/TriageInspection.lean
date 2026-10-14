@@ -127,4 +127,30 @@ theorem Tree.inspect_sound (tree : Tree) (w x y : Syntax) (frames : List Frame) 
       (plug (tree.branch w x y).toTerm frames) := by
   exact Steps.sound (tree.inspect w x y frames)
 
+/-- A single closed program that classifies the root constructor, discarding
+its children. This is a concrete witness that the three static shapes can be
+distinguished by an internal computation. -/
+def markerLeaf : Syntax := .leaf
+def markerStem : Syntax := stem .leaf
+def markerFork : Syntax := fork .leaf .leaf
+def constant (result : Syntax) : Syntax := fork .leaf result
+def classifier (tree : Syntax) : Syntax :=
+  triage markerLeaf (constant markerStem) (constant (constant markerFork)) tree
+
+def Tree.rootMarker : Tree → Head
+  | .leaf => .leaf
+  | .stem _ => .stem .leaf
+  | .fork _ _ => .fork .leaf .leaf
+
+theorem Tree.classifier_result (tree : Tree) :
+    run 100 (.eval (classifier tree.encode) []) = .done tree.rootMarker := by
+  cases tree <;> rfl
+
+theorem Tree.classifier_sound (tree : Tree) :
+    Relation.ReflTransGen Reduces (classifier tree.encode).toTerm
+      tree.rootMarker.toTerm := by
+  have h := run_sound 100 (.eval (classifier tree.encode) [])
+  rw [tree.classifier_result] at h
+  exact completed_eval_sound h
+
 end TriageInspection

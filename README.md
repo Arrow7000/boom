@@ -46,7 +46,14 @@ nets and will need to be connected to the concrete `Dup`/`Erase` rewrites.
 `TriageInspection.lean` defines the finite static tree domain and proves its
 encoding is injective. For every such tree, the abstract machine reaches the
 appropriate triage branch and passes its exact children without reducing them.
-The resulting TC reduction is proved for any machine continuation.
+The resulting TC reduction is proved for any machine continuation. It also
+constructs one closed program that classifies the three root shapes for every
+static tree, regardless of the contents of its children.
+
+`TriageRuleProperties.lean` proves unique rule selection for each unordered
+active pair and checks that any active pair wired entirely within a rule's
+replacement has an applicable exported rule. Connections through the
+surrounding net remain part of the whole-net simulation obligation.
 
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
