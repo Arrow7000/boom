@@ -641,4 +641,54 @@ theorem concrete_exposed_follow_terminates {net : Net}
     omega
   exact ⟨target, follow_complete _ _ hwalk _ hlength⟩
 
+inductive ReverseChain {α : Type} (step : α → Option α) :
+    Nat → α → α → Prop where
+  | zero {state} : ReverseChain step 0 state state
+  | snoc {n start middle terminal} :
+      ReverseChain step n start middle →
+      step middle = some terminal →
+      ReverseChain step (n + 1) start terminal
+
+theorem ReverseChain.prepend {α : Type} {step : α → Option α}
+    {n : Nat} {successor terminal : α}
+    (hchain : ReverseChain step n successor terminal)
+    {start : α} (hstep : step start = some successor) :
+    ReverseChain step (n + 1) start terminal := by
+  induction hchain with
+  | zero => exact ReverseChain.snoc ReverseChain.zero hstep
+  | snoc hprefix hlast ih =>
+      exact ReverseChain.snoc (ih hstep) hlast
+
+theorem Chain.toReverse {α : Type} {step : α → Option α}
+    {n : Nat} {start : α} (hchain : Chain step n start) :
+    ∃ terminal, ReverseChain step n start terminal ∧
+      step terminal = none := by
+  induction hchain with
+  | done hnone => exact ⟨_, ReverseChain.zero, hnone⟩
+  | next hstep _ ih =>
+      rcases ih with ⟨terminal, hreverse, hnone⟩
+      exact ⟨terminal, hreverse.prepend hstep, hnone⟩
+
+theorem ReverseChain.start_unique {α : Type} {step : α → Option α}
+    (hinjective : ∀ a b target,
+      step a = some target → step b = some target → a = b)
+    {n m : Nat} {first second terminal : α}
+    (hfirst : ReverseChain step n first terminal)
+    (hsecond : ReverseChain step m second terminal)
+    (hnoFirst : ∀ state, step state ≠ some first)
+    (hnoSecond : ∀ state, step state ≠ some second) :
+    first = second := by
+  induction hfirst generalizing m second with
+  | zero =>
+      cases hsecond with
+      | zero => rfl
+      | snoc _ hlast => exact False.elim (hnoFirst _ hlast)
+  | snoc hprefix hlast ih =>
+      cases hsecond with
+      | zero => exact False.elim (hnoSecond _ hlast)
+      | snoc hprefix' hlast' =>
+          have heq := hinjective _ _ _ hlast hlast'
+          cases heq
+          exact ih hprefix' hnoFirst hnoSecond
+
 end TriagePaths
