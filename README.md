@@ -33,6 +33,12 @@ irreflexive partner function and proves that distinct active pairs cannot
 share an agent. Rule replacement and its preservation properties remain to
 be defined.
 
+`TriageRuleReadback.lean` follows the exported RHS wires of each `Triage`
+rule. It proves the expressions passed to `Eval` are respectively `w`, `x u`,
+and `y u v`, that the unused inputs go to `Erase`, and that the result is
+wired to the original continuation. These are local template theorems;
+the whole-net simulation still needs the rewrite semantics.
+
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
 The current theorems do not establish semantic correctness of arbitrary nets.
