@@ -227,6 +227,18 @@ theorem mem_ruleStates {rule : TriageRuleModel.Rule}
   cases direction <;>
     simp [ruleStates, hnode]
 
+theorem ruleStates_node_mem {rule : TriageRuleModel.Rule}
+    {state : Node × Bool}
+    (hstate : state ∈ ruleStates rule) :
+    state.1 ∈ ruleIfaces rule := by
+  rcases List.mem_append.mp hstate with hfalse | htrue
+  · rcases List.mem_map.mp hfalse with ⟨node, hnode, heq⟩
+    have hn := congrArg Prod.fst heq
+    exact hn ▸ hnode
+  · rcases List.mem_map.mp htrue with ⟨node, hnode, heq⟩
+    have hn := congrArg Prod.fst heq
+    exact hn ▸ hnode
+
 theorem Walk.trace_subset_ruleStates {outer inner : Layer}
     (rule : TriageRuleModel.Rule)
     (hclosed : ∀ current direction side slot,
@@ -315,5 +327,318 @@ theorem concrete_follow_fuel_sufficient {net : Net}
     hstart
   apply follow_complete _ _ hwalk
   omega
+
+inductive Chain {α : Type} (step : α → Option α) : Nat → α → Prop where
+  | done {state} : step state = none → Chain step 0 state
+  | next {n state successor} :
+      step state = some successor →
+      Chain step n successor →
+      Chain step (n + 1) state
+
+/-- A finite injective partial transition cannot loop when its starting
+state has no predecessor. -/
+theorem Chain.exists_bounded {α : Type} [DecidableEq α]
+    (step : α → Option α)
+    (hinjective : ∀ a b target,
+      step a = some target → step b = some target → a = b)
+    (states : List α) (start : α)
+    (hclosed : ∀ state ∈ states, ∀ successor,
+      step state = some successor → successor ∈ states)
+    (hstart : start ∈ states)
+    (hnoPred : ∀ state ∈ states, step state ≠ some start) :
+    ∃ n, n ≤ states.length ∧ Chain step n start := by
+  suffices general : ∀ size (states : List α) (start : α),
+      states.length = size →
+      (∀ state ∈ states, ∀ successor,
+        step state = some successor → successor ∈ states) →
+      start ∈ states →
+      (∀ state ∈ states, step state ≠ some start) →
+      ∃ n, n ≤ states.length ∧ Chain step n start from
+    general states.length states start rfl hclosed hstart hnoPred
+  intro size
+  induction size using Nat.strong_induction_on with
+  | h size ih =>
+      intro states start hsize hclosed hstart hnoPred
+      cases hstep : step start with
+      | none =>
+          exact ⟨0, by omega, Chain.done hstep⟩
+      | some successor =>
+          let smaller := states.filter (fun state => decide (state ≠ start))
+          have hsuccessor : successor ∈ states :=
+            hclosed start hstart successor hstep
+          have hne : successor ≠ start := by
+            intro heq
+            exact hnoPred start hstart (heq ▸ hstep)
+          have hsmallMem : successor ∈ smaller := by
+            exact List.mem_filter.mpr ⟨hsuccessor, by simpa using hne⟩
+          have hsmaller : smaller.length < size := by
+            rw [← hsize]
+            exact List.length_filter_lt_length_iff_exists.mpr
+              ⟨start, hstart, by simp⟩
+          have hsmallClosed : ∀ state ∈ smaller, ∀ target,
+              step state = some target → target ∈ smaller := by
+            intro state hmem target htarget
+            have hold : state ∈ states := (List.mem_filter.mp hmem).1
+            have htargetMem := hclosed state hold target htarget
+            have htargetNe : target ≠ start := by
+              intro heq
+              exact hnoPred state hold (heq ▸ htarget)
+            exact List.mem_filter.mpr
+              ⟨htargetMem, by simpa using htargetNe⟩
+          have hsmallNoPred : ∀ state ∈ smaller,
+              step state ≠ some successor := by
+            intro state hmem htarget
+            have heq := hinjective state start successor htarget hstep
+            have hneStart : state ≠ start := by
+              simpa using (List.mem_filter.mp hmem).2
+            exact hneStart heq
+          rcases ih smaller.length hsmaller smaller successor rfl
+            hsmallClosed hsmallMem hsmallNoPred with ⟨n, hbound, hchain⟩
+          exact ⟨n + 1, by omega, Chain.next hstep hchain⟩
+
+def nextIface? (outer inner : Layer) (state : Node × Bool) :
+    Option (Node × Bool) :=
+  match state.1 with
+  | .real _ => none
+  | .iface _ _ =>
+      match layerNeighbor (selected outer inner state.2) state.1 with
+      | some (.iface side slot) => some (.iface side slot, !state.2)
+      | _ => none
+
+theorem layerNeighbor_injective {layer : Layer}
+    (hn : (layerEnds layer).Nodup)
+    {a b target : Node}
+    (ha : layerNeighbor layer a = some target)
+    (hb : layerNeighbor layer b = some target) : a = b := by
+  have hta := layerNeighbor_symmetric hn ha
+  have htb := layerNeighbor_symmetric hn hb
+  exact Option.some.inj (hta.symm.trans htb)
+
+theorem nextIface?_sound {outer inner : Layer}
+    {state target : Node × Bool}
+    (h : nextIface? outer inner state = some target) :
+    (∃ side slot, state.1 = .iface side slot) ∧
+    (∃ side slot, target.1 = .iface side slot) ∧
+    target.2 = !state.2 ∧
+    layerNeighbor (selected outer inner state.2) state.1 =
+      some target.1 := by
+  rcases state with ⟨node, direction⟩
+  cases node with
+  | real end_ => simp [nextIface?] at h
+  | iface side slot =>
+      refine ⟨⟨side, slot, rfl⟩, ?_⟩
+      unfold nextIface? at h
+      simp only at h
+      cases hnext : layerNeighbor (selected outer inner direction)
+          (.iface side slot) with
+      | none => simp [hnext] at h
+      | some next =>
+          cases next with
+          | real end_ => simp [hnext] at h
+          | iface nextSide nextSlot =>
+              simp [hnext] at h
+              subst target
+              refine ⟨⟨nextSide, nextSlot, rfl⟩, rfl, ?_⟩
+              simp
+
+theorem nextIface?_injective {outer inner : Layer}
+    (houter : (layerEnds outer).Nodup)
+    (hinner : (layerEnds inner).Nodup) :
+    ∀ a b target,
+      nextIface? outer inner a = some target →
+      nextIface? outer inner b = some target → a = b := by
+  intro a b target ha hb
+  have sa := nextIface?_sound ha
+  have sb := nextIface?_sound hb
+  have hdir : a.2 = b.2 := by
+    have heq : (!a.2) = (!b.2) := sa.2.2.1.symm.trans sb.2.2.1
+    simpa using congrArg Bool.not heq
+  have hn : (layerEnds (selected outer inner a.2)).Nodup := by
+    cases hd : a.2 with
+    | false => simpa [selected, hd] using houter
+    | true => simpa [selected, hd] using hinner
+  have hnode : a.1 = b.1 :=
+    layerNeighbor_injective hn sa.2.2.2
+      (by simpa only [← hdir] using sb.2.2.2)
+  exact Prod.ext hnode hdir
+
+theorem concrete_nextIface_closed {net : Net}
+    (hwf : net.wellFormed = true)
+    {rule : TriageRuleModel.Rule} (hrule : rule.wellFormed = true)
+    {left right : Nat} (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right) :
+    ∀ state ∈ ruleStates rule, ∀ successor,
+      nextIface? (oldLayer net left right)
+        (ruleLayer rule net.nextId) state = some successor →
+      successor ∈ ruleStates rule := by
+  intro state _ successor hstep
+  have hs := nextIface?_sound hstep
+  rcases hs.2.1 with ⟨side, slot, hnode⟩
+  have hallowed : Node.iface side slot ∈ ruleIfaces rule :=
+    concrete_iface_closed hwf hrule hactive hleftkind hrightkind
+      state.1 state.2 side slot (hnode ▸ hs.2.2.2)
+  have := mem_ruleStates (direction := successor.2) hallowed
+  have hpair : successor = (.iface side slot, successor.2) := by
+    rcases successor with ⟨node, dir⟩
+    exact congrArg (fun n : Node => (n, dir)) hnode
+  rw [hpair]
+  exact this
+
+theorem concrete_iface_in_both {net : Net}
+    (hwf : net.wellFormed = true)
+    {rule : TriageRuleModel.Rule} (hrule : rule.wellFormed = true)
+    {left right : Nat} (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right)
+    {node : Node} (hnode : node ∈ ruleIfaces rule) :
+    node ∈ layerEnds (oldLayer net left right) ∧
+      node ∈ layerEnds (ruleLayer rule net.nextId) := by
+  rcases ruleIfaces_mem_cases hnode with
+    ⟨slot, hslot, rfl⟩ | ⟨slot, hslot, rfl⟩
+  · exact matched_left_aux hwf hrule hleftkind hslot
+  · exact matched_right_aux hwf hrule hactive hrightkind hslot
+
+theorem concrete_selected_total {net : Net}
+    (hwf : net.wellFormed = true)
+    {rule : TriageRuleModel.Rule} (hrule : rule.wellFormed = true)
+    {left right : Nat} (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right)
+    {node : Node} (hnode : node ∈ ruleIfaces rule)
+    (direction : Bool) :
+    ∃ target,
+      layerNeighbor
+        (selected (oldLayer net left right)
+          (ruleLayer rule net.nextId) direction) node =
+        some target := by
+  have hb := concrete_iface_in_both hwf hrule hactive
+    hleftkind hrightkind hnode
+  cases direction with
+  | false =>
+      simpa [selected] using
+        layerNeighbor_total (oldLayer_nodup hwf left right) hb.1
+  | true =>
+      simpa [selected] using
+        layerNeighbor_total (ruleLayer_nodup hrule net.nextId) hb.2
+
+theorem nextIface?_no_pred_of_real_partner {outer inner : Layer}
+    (houter : (layerEnds outer).Nodup)
+    (hinner : (layerEnds inner).Nodup)
+    {side slot : Nat} {direction : Bool} {end_ : End}
+    (hreal : layerNeighbor (selected outer inner (!direction))
+      (.iface side slot) = some (.real end_)) :
+    ∀ state,
+      nextIface? outer inner state ≠
+        some (.iface side slot, direction) := by
+  intro state hstep
+  have hs := nextIface?_sound hstep
+  have hdir : state.2 = !direction := by
+    have heq : direction = !state.2 := hs.2.2.1
+    have hnot := congrArg Bool.not heq
+    simpa using hnot.symm
+  have hn : (layerEnds (selected outer inner (!direction))).Nodup := by
+    cases hd : direction with
+    | false => simpa [selected, hd] using hinner
+    | true => simpa [selected, hd] using houter
+  have hforward : layerNeighbor
+      (selected outer inner (!direction)) state.1 =
+      some (.iface side slot) := by
+    simpa only [hdir] using hs.2.2.2
+  have hback := layerNeighbor_symmetric hn hforward
+  rw [hreal] at hback
+  rcases hs.1 with ⟨sourceSide, sourceSlot, hsource⟩
+  rw [hsource] at hback
+  cases hback
+
+theorem concrete_chain_walk {net : Net}
+    (hwf : net.wellFormed = true)
+    {rule : TriageRuleModel.Rule} (hrule : rule.wellFormed = true)
+    {left right : Nat} (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right)
+    {n : Nat} {state : Node × Bool}
+    (hchain : Chain
+      (nextIface? (oldLayer net left right)
+        (ruleLayer rule net.nextId)) n state) :
+    state ∈ ruleStates rule →
+    ∃ end_, Walk (oldLayer net left right)
+      (ruleLayer rule net.nextId) (n + 1) state.1 state.2 end_ := by
+  induction hchain with
+  | done hnone =>
+      rename_i current
+      intro hstate
+      have hnode := ruleStates_node_mem hstate
+      rcases concrete_selected_total hwf hrule hactive
+          hleftkind hrightkind hnode current.2 with
+        ⟨target, hnext⟩
+      cases target with
+      | real end_ =>
+          exact ⟨end_, Walk.stop hnext⟩
+      | iface side slot =>
+          rcases ruleIfaces_mem_cases hnode with
+            ⟨sourceSlot, _, hsource⟩ | ⟨sourceSlot, _, hsource⟩ <;>
+            rw [hsource] at hnext <;>
+            simp [nextIface?, hsource, hnext] at hnone
+  | next hstep htail ih =>
+      rename_i steps current successor
+      intro hstate
+      have hsuccessor : _ :=
+        concrete_nextIface_closed hwf hrule hactive
+          hleftkind hrightkind _ hstate _ hstep
+      rcases ih hsuccessor with ⟨end_, hwalk⟩
+      have hs := nextIface?_sound hstep
+      rcases hs.2.1 with ⟨side, slot, htarget⟩
+      have hforward : layerNeighbor
+          (selected (oldLayer net left right)
+            (ruleLayer rule net.nextId) current.2) current.1 =
+          some (.iface side slot) := by
+        simpa only [htarget] using hs.2.2.2
+      rw [htarget, hs.2.2.1] at hwalk
+      exact ⟨end_, Walk.hop hforward hwalk⟩
+
+/-- Every exposed interface boundary reaches another real port. A closed
+interface loop cannot be entered from such a boundary. -/
+theorem concrete_exposed_follow_terminates {net : Net}
+    (hwf : net.wellFormed = true)
+    {rule : TriageRuleModel.Rule} (hrule : rule.wellFormed = true)
+    {left right : Nat} (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right)
+    {side slot : Nat}
+    (hstart : Node.iface side slot ∈ ruleIfaces rule)
+    (direction : Bool) {source : End}
+    (hreal : layerNeighbor
+      (selected (oldLayer net left right)
+        (ruleLayer rule net.nextId) (!direction))
+      (.iface side slot) = some (.real source)) :
+    ∃ target,
+      follow (oldLayer net left right) (ruleLayer rule net.nextId)
+        (2 * (rule.left.arity + rule.right.arity) + 2)
+        (.iface side slot) direction = some target := by
+  let outer := oldLayer net left right
+  let inner := ruleLayer rule net.nextId
+  let states := ruleStates rule
+  let start : Node × Bool := (.iface side slot, direction)
+  have houter : (layerEnds outer).Nodup := oldLayer_nodup hwf left right
+  have hinner : (layerEnds inner).Nodup := ruleLayer_nodup hrule net.nextId
+  have hstartMem : start ∈ states := mem_ruleStates hstart
+  have hnoPred : ∀ state ∈ states,
+      nextIface? outer inner state ≠ some start := by
+    intro state _
+    exact nextIface?_no_pred_of_real_partner houter hinner hreal state
+  rcases Chain.exists_bounded (nextIface? outer inner)
+      (nextIface?_injective houter hinner) states start
+      (concrete_nextIface_closed hwf hrule hactive
+        hleftkind hrightkind) hstartMem hnoPred with
+    ⟨n, hbound, hchain⟩
+  rcases concrete_chain_walk hwf hrule hactive
+      hleftkind hrightkind hchain hstartMem with ⟨target, hwalk⟩
+  have hlength : n + 1 ≤
+      2 * (rule.left.arity + rule.right.arity) + 2 := by
+    dsimp [states] at hbound
+    rw [ruleStates_length] at hbound
+    omega
+  exact ⟨target, follow_complete _ _ hwalk _ hlength⟩
 
 end TriagePaths

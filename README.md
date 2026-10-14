@@ -81,9 +81,11 @@ enough fuel to traverse each interface path.
 The endpoint and length of a terminating walk from a fixed starting state
 are unique. Its interface states never repeat. For an applicable concrete
 rule, every terminating boundary walk fits within the fuel used by
-`Net.replace`. The remaining path obligation is that walks starting at
-exposed endpoints terminate; separate closed interface loops can vanish.
-The resulting whole-splice matching theorem remains open.
+`Net.replace`. A finite injective transition argument also proves that every
+walk starting at an exposed real endpoint terminates at another real endpoint
+within that fuel. Separate closed interface loops can vanish. The resulting
+whole-splice matching theorem remains open: it must still prove that those
+endpoints are paired exactly once by `spliceStarts`.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.

@@ -47,6 +47,16 @@ theorem ruleIfaces_nodup (rule : Rule) : (ruleIfaces rule).Nodup := by
     rw [← ha] at hb
     cases hb
 
+theorem ruleIfaces_mem_cases {rule : Rule} {node : Node}
+    (hmem : node ∈ ruleIfaces rule) :
+    (∃ slot, slot < rule.left.arity ∧ node = .iface 0 (slot + 1)) ∨
+    (∃ slot, slot < rule.right.arity ∧ node = .iface 1 (slot + 1)) := by
+  rcases List.mem_append.mp hmem with hleft | hright
+  · rcases List.mem_map.mp hleft with ⟨slot, hslot, heq⟩
+    exact Or.inl ⟨slot, List.mem_range.mp hslot, heq.symm⟩
+  · rcases List.mem_map.mp hright with ⟨slot, hslot, heq⟩
+    exact Or.inr ⟨slot, List.mem_range.mp hslot, heq.symm⟩
+
 def belongs (left right : Nat) : TriageConcrete.End → Bool
   | .agent id _ => id == left || id == right
   | .free _ => false
@@ -378,6 +388,19 @@ theorem layerNeighbor_target_mem {layer : Layer} {a b : Node}
   rcases layerNeighbor_sound h with hab | hba
   · exact right_mem_layerEnds hab
   · exact left_mem_layerEnds hba
+
+theorem layerNeighbor_total {layer : Layer} {node : Node}
+    (hn : (layerEnds layer).Nodup)
+    (hmem : node ∈ layerEnds layer) :
+    ∃ target, layerNeighbor layer node = some target := by
+  rcases List.mem_flatMap.mp hmem with ⟨wire, hwire, hport⟩
+  rcases wire with ⟨a, b⟩
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hport
+  rcases hport with heq | heq
+  · subst node
+    exact ⟨b, layerNeighbor_of_mem hn hwire⟩
+  · subst node
+    exact ⟨a, layerNeighbor_of_mem_right hn hwire⟩
 
 theorem incident_edge_unique {net : Net} (hwf : net.wellFormed = true)
     {p q a b : TriageConcrete.End}
