@@ -76,6 +76,11 @@ layers. It also proves that retained old wires and direct replacement wires
 have disjoint endpoints. The path-following splice still needs a general
 proof that it pairs every remaining exposed endpoint exactly once, with
 enough fuel to traverse each interface path.
+`TriagePaths.lean` defines a declarative alternating walk and proves that
+`follow` returns an endpoint exactly when such a walk fits within its fuel.
+The endpoint of a walk from a fixed starting state is unique. A uniform
+bound on walk length and the resulting whole-splice matching theorem remain
+open.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
