@@ -67,15 +67,12 @@ proved total on live ports, symmetric, and irreflexive. Such a net maps into
 `TriageGraph.Net`, so its distinct active pairs are formally disjoint.
 The stronger executable `valid` check also tracks fresh ID allocation, and a
 general theorem proves that every rule replacement preserves that ID bound
-and cannot duplicate a live agent ID. The remaining generic preservation
-lemma is for the alternating wire splice across the rule boundary.
+and cannot duplicate a live agent ID.
 `TriageBoundary.lean` proves the local conditions for that splice: each old
 and replacement layer is a matching, the active principal wire is absent
 from the old layer, and every applicable rule auxiliary port occurs in both
 layers. It also proves that retained old wires and direct replacement wires
-have disjoint endpoints. The path-following splice still needs a general
-proof that it pairs every remaining exposed endpoint exactly once, with
-enough fuel to traverse each interface path.
+have disjoint endpoints.
 `TriagePaths.lean` defines a declarative alternating walk and proves that
 `follow` returns an endpoint exactly when such a walk fits within its fuel.
 The endpoint and length of a terminating walk from a fixed starting state
@@ -97,10 +94,15 @@ itself.
 endpoint coverage and produces a matching for a symmetric relation with
 unique, distinct partners. Applied to `spliceStarts`, the result proves that
 every exposed boundary port is used exactly once for every applicable rule
-on a valid net. The whole-net preservation theorem must still combine this
-boundary matching with retained old wires and direct replacement wires,
-and show that the resulting ports are exactly those of the surviving and
-created agents.
+on a valid net.
+
+`TriagePreservation.lean` combines that boundary matching with retained old
+wires and direct replacement wires. Its universal `Net.replace_valid` theorem
+proves that replacing an applicable active pair by any well formed rule
+preserves the complete graph invariant: every live port is used exactly once,
+all used ports belong to surviving or created agents or the external result,
+live agent IDs stay distinct, and new allocation remains fresh. Connecting
+this theorem to every executable `redexChoices` entry is the next step.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.

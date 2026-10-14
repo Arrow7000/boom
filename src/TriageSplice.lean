@@ -341,4 +341,148 @@ theorem concrete_splice_matching_and_coverage {net : Net}
         exact concrete_splice_covers_start hwf hrule hactive
           hleftkind hrightkind false hstart
 
+theorem direct_mem_iff {layer : Layer} {a b : End} :
+    (a, b) ∈ direct layer ↔ (Node.real a, Node.real b) ∈ layer := by
+  constructor
+  · intro hmem
+    rcases List.mem_filterMap.mp hmem with ⟨⟨x, y⟩, hedge, hout⟩
+    cases x <;> cases y <;> simp at hout
+    rcases hout with ⟨rfl, rfl⟩
+    exact hedge
+  · intro hedge
+    exact List.mem_filterMap.mpr ⟨(_, _), hedge, rfl⟩
+
+theorem direct_endpoint_real_mem {layer : Layer} {end_ : End}
+    (hmem : end_ ∈ wireEnds (direct layer)) :
+    Node.real end_ ∈ layerEnds layer := by
+  exact (direct_ends_sublist layer).subset (List.mem_map.mpr ⟨end_, hmem, rfl⟩)
+
+theorem start_endpoint_real_mem {layer : Layer} {end_ : End}
+    (hmem : end_ ∈ (starts layer).map Prod.fst) :
+    Node.real end_ ∈ layerEnds layer := by
+  rcases List.mem_map.mp hmem with ⟨⟨source, node⟩, hstart, heq⟩
+  change source = end_ at heq
+  subst source
+  rcases starts_mem_iff.mp hstart with ⟨_, hedge | hedge⟩
+  · exact left_mem_layerEnds hedge
+  · exact right_mem_layerEnds hedge
+
+theorem real_endpoint_partition (layer : Layer) (end_ : End) :
+    Node.real end_ ∈ layerEnds layer ↔
+      end_ ∈ wireEnds (direct layer) ∨
+      end_ ∈ (starts layer).map Prod.fst := by
+  constructor
+  · intro hmem
+    rcases List.mem_flatMap.mp hmem with ⟨⟨a, b⟩, hedge, hport⟩
+    cases a with
+    | real left =>
+        cases b with
+        | real right =>
+            have hd := direct_mem_iff.mpr hedge
+            have heq : end_ = left ∨ end_ = right := by simpa using hport
+            left
+            rcases heq with rfl | rfl
+            · exact left_mem_wireEnds hd
+            · exact right_mem_wireEnds hd
+        | iface side slot =>
+            have heq : end_ = left := by simpa using hport
+            subst end_
+            right
+            have hs : (left, Node.iface side slot) ∈ starts layer :=
+              starts_mem_iff.mpr ⟨⟨side, slot, rfl⟩, Or.inl hedge⟩
+            exact List.mem_map.mpr ⟨_, hs, rfl⟩
+    | iface side slot =>
+        cases b with
+        | real right =>
+            have heq : end_ = right := by simpa using hport
+            subst end_
+            right
+            have hs : (right, Node.iface side slot) ∈ starts layer :=
+              starts_mem_iff.mpr ⟨⟨side, slot, rfl⟩, Or.inr hedge⟩
+            exact List.mem_map.mpr ⟨_, hs, rfl⟩
+        | iface otherSide otherSlot => simp at hport
+  · rintro (hdirect | hstart)
+    · exact direct_endpoint_real_mem hdirect
+    · exact start_endpoint_real_mem hstart
+
+theorem direct_starts_disjoint {layer : Layer}
+    (hn : (layerEnds layer).Nodup) :
+    (wireEnds (direct layer)).Disjoint ((starts layer).map Prod.fst) := by
+  rw [List.disjoint_left]
+  intro end_ hdirect hstart
+  rcases List.mem_flatMap.mp hdirect with ⟨⟨a, b⟩, hedge, hport⟩
+  have hedge' := direct_mem_iff.mp hedge
+  rcases List.mem_map.mp hstart with ⟨⟨source, node⟩, hs, heq⟩
+  change source = end_ at heq
+  subst source
+  rcases starts_sound hn hs with ⟨⟨side, slot, rfl⟩, hneighbor⟩
+  have hiface := layerNeighbor_symmetric hn hneighbor
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hport
+  rcases hport with heq | heq
+  · have hreal := layerNeighbor_of_mem hn hedge'
+    rw [← heq, hiface] at hreal
+    cases hreal
+  · have hreal := layerNeighbor_of_mem_right hn hedge'
+    rw [← heq, hiface] at hreal
+    cases hreal
+
+theorem directs_disjoint {outer inner : Layer}
+    (hdisjoint : ∀ end_, Node.real end_ ∈ layerEnds outer →
+      Node.real end_ ∈ layerEnds inner → False) :
+    (wireEnds (direct outer)).Disjoint (wireEnds (direct inner)) := by
+  rw [List.disjoint_left]
+  intro end_ hold hnew
+  exact hdisjoint end_ (direct_endpoint_real_mem hold) (direct_endpoint_real_mem hnew)
+
+theorem directs_exposed_disjoint {outer inner : Layer}
+    (houter : (layerEnds outer).Nodup)
+    (hinner : (layerEnds inner).Nodup)
+    (hdisjoint : ∀ end_, Node.real end_ ∈ layerEnds outer →
+      Node.real end_ ∈ layerEnds inner → False) :
+    (wireEnds (direct outer ++ direct inner)).Disjoint (exposedEnds outer inner) := by
+  rw [List.disjoint_left]
+  intro end_ hdirect hstart
+  have hdirect' : end_ ∈ wireEnds (direct outer) ∨
+      end_ ∈ wireEnds (direct inner) := by
+    simpa only [wireEnds, List.flatMap_append, List.mem_append] using hdirect
+  rcases hdirect' with hold | hnew <;>
+    rcases List.mem_append.mp hstart with hstartOld | hstartNew
+  · exact (List.disjoint_left.mp (direct_starts_disjoint houter)) hold hstartOld
+  · exact hdisjoint end_ (direct_endpoint_real_mem hold) (start_endpoint_real_mem hstartNew)
+  · exact hdisjoint end_ (start_endpoint_real_mem hstartOld) (direct_endpoint_real_mem hnew)
+  · exact (List.disjoint_left.mp (direct_starts_disjoint hinner)) hnew hstartNew
+
+theorem composed_matching {outer inner : Layer}
+    (houter : (layerEnds outer).Nodup)
+    (hinner : (layerEnds inner).Nodup)
+    (hdisjoint : ∀ end_, Node.real end_ ∈ layerEnds outer →
+      Node.real end_ ∈ layerEnds inner → False) (fuel : Nat) :
+    (wireEnds (direct outer ++ direct inner ++
+      spliceStarts outer inner fuel)).Nodup := by
+  have hdirect : (wireEnds (direct outer ++ direct inner)).Nodup := by
+    simpa only [wireEnds, List.flatMap_append] using
+      List.nodup_append'.2 ⟨direct_ends_nodup houter,
+        direct_ends_nodup hinner, directs_disjoint hdisjoint⟩
+  have hthrough := (spliceStarts_matching houter hinner hdisjoint fuel).1
+  have hdisj : (wireEnds (direct outer ++ direct inner)).Disjoint
+      (wireEnds (spliceStarts outer inner fuel)) := by
+    rw [List.disjoint_left]
+    intro end_ hdir hsplice
+    exact (List.disjoint_left.mp
+      (directs_exposed_disjoint houter hinner hdisjoint)) hdir
+      (spliceStarts_endpoint_exposed houter hinner hdisjoint fuel hsplice)
+  simpa only [wireEnds, List.flatMap_append] using
+    List.nodup_append'.2 ⟨hdirect, hthrough, hdisj⟩
+
+theorem composed_coverage {outer inner : Layer} (fuel : Nat)
+    (hcoverage : ∀ end_, end_ ∈ wireEnds (spliceStarts outer inner fuel) ↔
+      end_ ∈ exposedEnds outer inner) (end_ : End) :
+    end_ ∈ wireEnds (direct outer ++ direct inner ++ spliceStarts outer inner fuel) ↔
+      Node.real end_ ∈ layerEnds outer ∨ Node.real end_ ∈ layerEnds inner := by
+  simp only [wireEnds, List.flatMap_append, List.mem_append]
+  change (_ ∨ _) ∨ end_ ∈ wireEnds (spliceStarts outer inner fuel) ↔ _
+  rw [hcoverage, real_endpoint_partition, real_endpoint_partition]
+  simp only [exposedEnds, List.mem_append]
+  tauto
+
 end TriageSplice
