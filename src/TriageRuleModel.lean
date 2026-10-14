@@ -42,13 +42,16 @@ def Rule.used (rule : Rule) : List End :=
 once. This is the same finite condition checked by `System.validate` in JS. -/
 def Rule.wellFormed (rule : Rule) : Bool :=
   decide rule.used.Nodup &&
-  decide (rule.used.length = rule.expected.length) &&
-  rule.used.all (fun end_ => rule.expected.any (fun expected => decide (end_ = expected)))
+  rule.used.all (fun end_ =>
+    rule.expected.any (fun expected => decide (end_ = expected))) &&
+  rule.expected.all (fun expected =>
+    rule.used.any (fun end_ => decide (end_ = expected)))
 
 theorem Rule.wellFormed_iff (rule : Rule) :
     rule.wellFormed = true ↔
-      rule.used.Nodup ∧ rule.used.length = rule.expected.length ∧
-        ∀ end_ ∈ rule.used, end_ ∈ rule.expected := by
+      rule.used.Nodup ∧
+      (∀ end_ ∈ rule.used, end_ ∈ rule.expected) ∧
+      (∀ end_ ∈ rule.expected, end_ ∈ rule.used) := by
   simp [Rule.wellFormed, List.all_eq_true, List.any_eq_true, and_assoc]
 
 def Rule.branchesOnlyOnHeads (rule : Rule) : Bool :=

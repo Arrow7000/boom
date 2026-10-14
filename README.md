@@ -28,6 +28,11 @@ copy/erase layouts, and the evaluator barriers before `Call`, `Case`, and
 `Triage`. From `../netties`, run `npm run formal:export` after changing the
 system and `npm run formal:check` to check freshness and build the Lean proofs.
 
+`TriageGraph.lean` starts the port-graph model. It treats wiring as a symmetric,
+irreflexive partner function and proves that distinct active pairs cannot
+share an agent. Rule replacement and its preservation properties remain to
+be defined.
+
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
 The current theorems do not establish semantic correctness of arbitrary nets.

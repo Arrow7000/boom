@@ -151,8 +151,9 @@ theorem rules_wellFormed :
     rules.all Rule.wellFormed = true := by decide
 
 theorem each_rule_wellFormed {rule : Rule} (h : rule ∈ rules) :
-    rule.used.Nodup ∧ rule.used.length = rule.expected.length ∧
-      ∀ end_ ∈ rule.used, end_ ∈ rule.expected := by
+    rule.used.Nodup ∧
+      (∀ end_ ∈ rule.used, end_ ∈ rule.expected) ∧
+      (∀ end_ ∈ rule.expected, end_ ∈ rule.used) := by
   have hall : ∀ r ∈ rules, r.wellFormed = true := by
     simpa only [List.all_eq_true] using rules_wellFormed
   exact (Rule.wellFormed_iff rule).mp (hall rule h)
