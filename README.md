@@ -15,6 +15,23 @@ lake exe cache get   # download prebuilt Mathlib oleans (don't recompile Mathlib
 lake build
 ```
 
+## Interaction-net candidate
+
+`TriageMachine.lean` models the evaluator used by the adjacent `netties`
+playground. Its step and whole-run soundness theorems relate the abstract
+machine to `Term.Reduces`; its example checks that fork inspection precedes
+evaluation of a selected child.
+
+`TriageRules.lean` is generated from `netties/src/core/triageMachine.ts`.
+`TriageRuleModel.lean` checks the exported port wiring, rule uniqueness,
+copy/erase layouts, and the evaluator barriers before `Call`, `Case`, and
+`Triage`. From `../netties`, run `npm run formal:export` after changing the
+system and `npm run formal:check` to check freshness and build the Lean proofs.
+
+The remaining proof obligation is a simulation between concrete net rewrites
+and `TriageMachine.Step`, including the administrative copy and erase steps.
+The current theorems do not establish semantic correctness of arbitrary nets.
+
 ## References
 
 - Barry Jay. *Reflective Programs in Tree Calculus.* (book)

@@ -5,7 +5,7 @@ defaultTargets = ["Boom"]
 [[lean_lib]]
 name = "Boom"
 srcDir = "src"
-roots = ["TreeCalculus"]
+roots = ["TreeCalculus", "TriageMachine", "TriageRuleModel", "TriageRules"]
 
 [[require]]
 name = "mathlib"
