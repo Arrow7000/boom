@@ -119,6 +119,16 @@ A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
 
+`TriageEquivalence.lean` defines graph isomorphism by a bijection on agent IDs,
+fixing free ports and port slots. It is an equivalence relation and preserves
+active pairs and the executable syntax readback at every fuel bound.
+
+`TriageResidual.lean` proves that executable choices either coincide exactly
+or have disjoint agents. A replacement preserves the other disjoint choice,
+even when auxiliary wires connect the two pairs. Both orders are therefore
+valid executable schedules, with the same final allocation counter. Equality
+of their resulting wire graphs remains to be proved.
+
 The remaining semantic obligations are confluence of concrete rewrites up to
 renaming allocated agents and reordering wire lists, and a simulation between
 concrete net rewrites and `TriageMachine.Step`, including the administrative
