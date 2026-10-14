@@ -101,8 +101,13 @@ wires and direct replacement wires. Its universal `Net.replace_valid` theorem
 proves that replacing an applicable active pair by any well formed rule
 preserves the complete graph invariant: every live port is used exactly once,
 all used ports belong to surviving or created agents or the external result,
-live agent IDs stay distinct, and new allocation remains fresh. Connecting
-this theorem to every executable `redexChoices` entry is the next step.
+live agent IDs stay distinct, and new allocation remains fresh.
+
+`TriageReduction.lean` proves that every executable `redexChoices` entry is
+an applicable exported rule on an active pair. Hence every finite schedule
+from a valid net stays valid. The first-redex `run` and every state in its
+`trace` inherit this universal invariant. Validity of the initial net builder
+for arbitrary source trees remains to be proved.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
