@@ -43,6 +43,11 @@ the whole-net simulation still needs the rewrite semantics.
 under any order of administrative steps. It abstracts from the copied output
 nets and will need to be connected to the concrete `Dup`/`Erase` rewrites.
 
+`TriageInspection.lean` defines the finite static tree domain and proves its
+encoding is injective. For every such tree, the abstract machine reaches the
+appropriate triage branch and passes its exact children without reducing them.
+The resulting TC reduction is proved for any machine continuation.
+
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
 The current theorems do not establish semantic correctness of arbitrary nets.
