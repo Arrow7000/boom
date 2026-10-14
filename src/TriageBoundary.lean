@@ -18,6 +18,35 @@ def ruleLayer (rule : Rule) (fresh : Nat) : Layer :=
   rule.wires.map fun (a, b) =>
     (Node.fromRule fresh a, Node.fromRule fresh b)
 
+def ruleIfaces (rule : Rule) : List Node :=
+  (List.range rule.left.arity).map (fun slot => Node.iface 0 (slot + 1)) ++
+  (List.range rule.right.arity).map (fun slot => Node.iface 1 (slot + 1))
+
+theorem ruleIfaces_length (rule : Rule) :
+    (ruleIfaces rule).length = rule.left.arity + rule.right.arity := by
+  simp [ruleIfaces]
+
+theorem ruleIfaces_nodup (rule : Rule) : (ruleIfaces rule).Nodup := by
+  apply List.nodup_append'.2
+  constructor
+  · apply List.Nodup.map
+    · intro a b h
+      cases (Node.iface.inj h) with
+      | intro _ hslot => omega
+    · exact List.nodup_range
+  constructor
+  · apply List.Nodup.map
+    · intro a b h
+      cases (Node.iface.inj h) with
+      | intro _ hslot => omega
+    · exact List.nodup_range
+  · rw [List.disjoint_left]
+    intro node hleft hright
+    rcases List.mem_map.mp hleft with ⟨a, _, ha⟩
+    rcases List.mem_map.mp hright with ⟨b, _, hb⟩
+    rw [← ha] at hb
+    cases hb
+
 def belongs (left right : Nat) : TriageConcrete.End → Bool
   | .agent id _ => id == left || id == right
   | .free _ => false
@@ -109,6 +138,25 @@ theorem ruleLayer_no_primary_iface {rule : Rule}
   intro hmem
   have hexpected := (ruleLayer_ends_iff h fresh (.iface side 0)).mp hmem
   simp [Rule.expected] at hexpected
+
+theorem ruleLayer_iface_mem_ruleIfaces {rule : Rule}
+    (h : rule.wellFormed = true) (fresh side slot : Nat)
+    (hmem : Node.iface side slot ∈ layerEnds (ruleLayer rule fresh)) :
+    Node.iface side slot ∈ ruleIfaces rule := by
+  have hexpected := (ruleLayer_ends_iff h fresh (.iface side slot)).mp hmem
+  simp only [Rule.expected, List.mem_append] at hexpected
+  rcases hexpected with (hleft | hright) | hnew
+  · rcases List.mem_map.mp hleft with ⟨i, hi, heq⟩
+    have hnode : Node.iface side slot = Node.iface 0 (i + 1) := by
+      simpa [Node.fromRule] using congrArg (Node.fromRule fresh) heq.symm
+    rw [hnode]
+    exact List.mem_append.mpr (Or.inl (List.mem_map.mpr ⟨i, hi, rfl⟩))
+  · rcases List.mem_map.mp hright with ⟨i, hi, heq⟩
+    have hnode : Node.iface side slot = Node.iface 1 (i + 1) := by
+      simpa [Node.fromRule] using congrArg (Node.fromRule fresh) heq.symm
+    rw [hnode]
+    exact List.mem_append.mpr (Or.inr (List.mem_map.mpr ⟨i, hi, rfl⟩))
+  · simp [List.mem_flatMap] at hnew
 
 /-- Direct RHS wires retain their endpoints from the replacement matching. -/
 theorem direct_ends_sublist (layer : Layer) :
@@ -325,6 +373,12 @@ theorem layerNeighbor_symmetric {layer : Layer} {a b : Node}
   · exact layerNeighbor_of_mem_right hn hab
   · exact layerNeighbor_of_mem hn hba
 
+theorem layerNeighbor_target_mem {layer : Layer} {a b : Node}
+    (h : layerNeighbor layer a = some b) : b ∈ layerEnds layer := by
+  rcases layerNeighbor_sound h with hab | hba
+  · exact right_mem_layerEnds hab
+  · exact left_mem_layerEnds hba
+
 theorem incident_edge_unique {net : Net} (hwf : net.wellFormed = true)
     {p q a b : TriageConcrete.End}
     (hpq : net.neighbor p = some q)
@@ -493,6 +547,58 @@ theorem Net.kind_mem {net : Net} {id : Nat} {kind : Kind}
       subst foundKind
       exact hmem
 
+theorem ids_unique {agents : List (Nat × Kind)}
+    (hids : (agents.map Prod.fst).Nodup)
+    {id : Nat} {first second : Kind}
+    (hfirst : (id, first) ∈ agents)
+    (hsecond : (id, second) ∈ agents) : first = second := by
+  induction agents with
+  | nil => cases hfirst
+  | cons head rest ih =>
+      rcases head with ⟨headId, headKind⟩
+      have hn := List.nodup_cons.mp hids
+      rcases List.mem_cons.mp hfirst with hf | hf
+      · rcases List.mem_cons.mp hsecond with hs | hs
+        · have hf' : id = headId ∧ first = headKind := Prod.mk.inj hf
+          have hs' : id = headId ∧ second = headKind := Prod.mk.inj hs
+          exact hf'.2.trans hs'.2.symm
+        · have hid : id = headId := (Prod.mk.inj hf).1
+          have hmem : headId ∈ rest.map Prod.fst := by
+            apply List.mem_map.mpr
+            exact ⟨(id, second), hs, by simpa using hid⟩
+          exact False.elim (hn.1 hmem)
+      · rcases List.mem_cons.mp hsecond with hs | hs
+        · have hid : id = headId := (Prod.mk.inj hs).1
+          have hmem : headId ∈ rest.map Prod.fst := by
+            apply List.mem_map.mpr
+            exact ⟨(id, first), hf, by simpa using hid⟩
+          exact False.elim (hn.1 hmem)
+        · exact ih hn.2 hf hs
+
+theorem Net.used_agent_slot_bound {net : Net}
+    (hwf : net.wellFormed = true)
+    {id slot : Nat} {kind : Kind}
+    (hkind : net.kind? id = some kind)
+    (hused : TriageConcrete.End.agent id slot ∈ net.used) :
+    slot ≤ kind.arity := by
+  have hids := ((Net.wellFormed_iff net).mp hwf).1
+  have hexpected := ((Net.wellFormed_iff net).mp hwf).2.2.1 _ hused
+  simp only [Net.expected, List.mem_append, List.mem_flatMap] at hexpected
+  rcases hexpected with ⟨⟨otherId, otherKind⟩, hentry, hport⟩ | hfree
+  · rcases List.mem_map.mp hport with ⟨port, hslot, heq⟩
+    have heq' : id = otherId ∧ slot = port :=
+      TriageConcrete.End.agent.inj heq.symm
+    rcases heq' with ⟨hid, hportEq⟩
+    rw [← hid] at hentry hslot
+    rw [← hportEq] at hslot
+    have hk : kind = otherKind :=
+      ids_unique hids (Net.kind_mem hkind) hentry
+    rw [← hk] at hslot
+    have hlt : slot < kind.arity + 1 := by
+      simpa only using List.mem_range.mp hslot
+    omega
+  · simp at hfree
+
 theorem Net.aux_used {net : Net} (hwf : net.wellFormed = true)
     {id : Nat} {kind : Kind} {slot : Nat}
     (hkind : net.kind? id = some kind) (hslot : slot < kind.arity) :
@@ -558,5 +664,60 @@ theorem matched_right_aux {net : Net} (hwf : net.wellFormed = true)
       apply List.mem_map.mpr
       exact ⟨slot, List.mem_range.mpr hslot, rfl⟩
     simpa [Node.fromRule] using ruleLayer_covers hrule net.nextId hexpected
+
+theorem oldLayer_iface_mem_ruleIfaces {net : Net}
+    (hwf : net.wellFormed = true) (rule : Rule)
+    {left right side slot : Nat}
+    (hactive : net.Active left right)
+    (hleftkind : net.kind? left = some rule.left)
+    (hrightkind : net.kind? right = some rule.right)
+    (hmem : Node.iface side slot ∈ layerEnds (oldLayer net left right)) :
+    Node.iface side slot ∈ ruleIfaces rule := by
+  have hprimary := oldLayer_no_primary_iface hwf hactive
+  have hne := active_ids_ne hwf hactive
+  have hmem0 := hmem
+  rw [oldLayer_ends] at hmem
+  rcases List.mem_map.mp hmem with ⟨source, hsource, heq⟩
+  have hsourceUsed : source ∈ net.used := by
+    exact ((List.filter_sublist).flatMap _ |>.trans
+      ((List.filter_sublist).flatMap _)).subset hsource
+  cases source with
+  | free name => simp [Node.fromOld] at heq
+  | agent id port =>
+      by_cases hidl : id = left
+      · have hnode : Node.iface side slot = Node.iface 0 port := by
+          simpa [Node.fromOld, hidl] using heq.symm
+        have hport : port ≠ 0 := by
+          intro hz
+          have : Node.iface 0 0 ∈ layerEnds (oldLayer net left right) := by
+            simpa only [hnode, hz] using hmem0
+          exact hprimary.1 this
+        have hbound : port ≤ rule.left.arity := by
+          rw [hidl] at hsourceUsed
+          exact Net.used_agent_slot_bound hwf hleftkind hsourceUsed
+        let i := port - 1
+        have hip : port = i + 1 := by dsimp [i]; omega
+        have hi : i < rule.left.arity := by omega
+        rw [hnode, hip]
+        exact List.mem_append.mpr
+          (Or.inl (List.mem_map.mpr ⟨i, List.mem_range.mpr hi, rfl⟩))
+      · by_cases hidr : id = right
+        · have hnode : Node.iface side slot = Node.iface 1 port := by
+            simpa [Node.fromOld, hidl, hidr, hne.symm] using heq.symm
+          have hport : port ≠ 0 := by
+            intro hz
+            have : Node.iface 1 0 ∈ layerEnds (oldLayer net left right) := by
+              simpa only [hnode, hz] using hmem0
+            exact hprimary.2 this
+          have hbound : port ≤ rule.right.arity := by
+            rw [hidr] at hsourceUsed
+            exact Net.used_agent_slot_bound hwf hrightkind hsourceUsed
+          let i := port - 1
+          have hip : port = i + 1 := by dsimp [i]; omega
+          have hi : i < rule.right.arity := by omega
+          rw [hnode, hip]
+          exact List.mem_append.mpr
+            (Or.inr (List.mem_map.mpr ⟨i, List.mem_range.mpr hi, rfl⟩))
+        · simp [Node.fromOld, hidl, hidr] at heq
 
 end TriageBoundary

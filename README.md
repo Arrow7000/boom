@@ -78,9 +78,12 @@ proof that it pairs every remaining exposed endpoint exactly once, with
 enough fuel to traverse each interface path.
 `TriagePaths.lean` defines a declarative alternating walk and proves that
 `follow` returns an endpoint exactly when such a walk fits within its fuel.
-The endpoint of a walk from a fixed starting state is unique. A uniform
-bound on walk length and the resulting whole-splice matching theorem remain
-open.
+The endpoint and length of a terminating walk from a fixed starting state
+are unique. Its interface states never repeat. For an applicable concrete
+rule, every terminating boundary walk fits within the fuel used by
+`Net.replace`. The remaining path obligation is that walks starting at
+exposed endpoints terminate; separate closed interface loops can vanish.
+The resulting whole-splice matching theorem remains open.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
