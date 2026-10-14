@@ -106,8 +106,15 @@ live agent IDs stay distinct, and new allocation remains fresh.
 `TriageReduction.lean` proves that every executable `redexChoices` entry is
 an applicable exported rule on an active pair. Hence every finite schedule
 from a valid net stays valid. The first-redex `run` and every state in its
-`trace` inherit this universal invariant. Validity of the initial net builder
-for arbitrary source trees remains to be proved.
+`trace` inherit this universal invariant.
+
+`TriageInitial.lean` proves that the source builder produces a valid initial
+net for every finite source syntax. Its construction invariant records
+unconnected ports until the evaluator and external result port are attached.
+Together with reduction preservation, this proves graph validity at every
+state of every finite schedule from any source term, without a size bound.
+The correspondence of final output syntax with tree calculus remains a
+separate simulation obligation.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
