@@ -2,6 +2,7 @@ import TriageRuleProperties
 import TriageInspection
 import TriageGraph
 import Mathlib.Data.List.Nodup
+import Mathlib.Data.List.Enum
 
 /-!
 An executable, wire-ID-free model of the netties reducer. It allocates fresh
@@ -175,6 +176,11 @@ def Net.wellFormed (net : Net) : Bool :=
   decide net.used.Nodup &&
   net.used.all (fun end_ => net.expected.any (fun expected => decide (end_ = expected))) &&
   net.expected.all (fun end_ => net.used.any (fun used => decide (end_ = used)))
+
+def Net.freshIds (net : Net) : Bool :=
+  net.agents.all fun (id, _) => id < net.nextId
+
+def Net.valid (net : Net) : Bool := net.wellFormed && net.freshIds
 
 theorem Net.wellFormed_iff (net : Net) : net.wellFormed = true ↔
     (net.agents.map Prod.fst).Nodup ∧
@@ -362,6 +368,38 @@ def Net.replace (net : Net) (rule : Rule) (left right : Nat) : Net := Id.run do
            wires := untouched ++ direct inner ++ through,
            nextId := net.nextId + rule.agents.length }
 
+theorem Net.replace_agents (net : Net) (rule : Rule) (left right : Nat) :
+    (net.replace rule left right).agents =
+      net.agents.filter (fun entry => entry.1 != left && entry.1 != right) ++
+      (rule.agents.zipIdx.map fun (kind, index) => (net.nextId + index, kind)) := by
+  rfl
+
+theorem Net.replace_nextId (net : Net) (rule : Rule) (left right : Nat) :
+    (net.replace rule left right).nextId = net.nextId + rule.agents.length := by
+  rfl
+
+/-- Fresh IDs remain above every surviving or newly allocated agent ID. This
+is the allocation part of the universal rewrite-preservation obligation. -/
+theorem Net.replace_freshIds {net : Net} (h : net.freshIds = true)
+    (rule : Rule) (left right : Nat) :
+    (net.replace rule left right).freshIds = true := by
+  have hOld : ∀ entry ∈ net.agents, entry.1 < net.nextId := by
+    simpa only [Net.freshIds, List.all_eq_true, decide_eq_true_eq] using h
+  have hNew : ∀ entry ∈ rule.agents.zipIdx,
+      net.nextId + entry.2 < net.nextId + rule.agents.length := by
+    rw [List.forall_mem_zipIdx']
+    intro i hi
+    omega
+  simp only [Net.freshIds, List.all_eq_true, Net.replace_agents,
+    Net.replace_nextId, List.mem_append, decide_eq_true_eq]
+  intro entry hentry
+  rcases hentry with hold | hnew
+  · have hmem := (List.mem_filter.mp hold).1
+    exact Nat.lt_of_lt_of_le (hOld entry hmem) (Nat.le_add_right ..)
+  · rcases List.mem_map.mp hnew with ⟨⟨kind, index⟩, hmem, heq⟩
+    subst entry
+    exact hNew (kind, index) hmem
+
 def Net.firstRedex (net : Net) : Option (Rule × Nat × Nat) :=
   (net.wires.filterMap fun (a, b) =>
     match a, b with
@@ -442,7 +480,7 @@ def agreesOn (source : Syntax) (fuel : Nat) : Bool :=
   | .done head =>
       let concrete := (initial source).run fuel
       concrete.outputSyntax fuel == some (headSyntax head) &&
-      ((initial source).trace fuel).all Net.wellFormed &&
+      ((initial source).trace fuel).all Net.valid &&
       concrete.noActivePairs
   | _ => true
 
@@ -476,7 +514,7 @@ theorem smallTerms_agree : smallTerms.all (fun source => agreesOn source 100) = 
   native_decide
 
 theorem demo_trace_wellFormed :
-    ((initial demo).trace 100).all Net.wellFormed = true := by
+    ((initial demo).trace 100).all Net.valid = true := by
   native_decide
 
 theorem demo_output :

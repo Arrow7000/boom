@@ -66,6 +66,8 @@ theorem.
 For any concrete net satisfying its wellformedness check, the edge lookup is
 proved total on live ports, symmetric, and irreflexive. Such a net maps into
 `TriageGraph.Net`, so its distinct active pairs are formally disjoint.
+The stronger executable `valid` check also tracks fresh ID allocation, and a
+general theorem proves that every rule replacement preserves that ID bound.
 
 The remaining proof obligation is a simulation between concrete net rewrites
 and `TriageMachine.Step`, including the administrative copy and erase steps.
