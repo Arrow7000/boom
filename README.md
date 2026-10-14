@@ -30,8 +30,7 @@ system and `npm run formal:check` to check freshness and build the Lean proofs.
 
 `TriageGraph.lean` starts the port-graph model. It treats wiring as a symmetric,
 irreflexive partner function and proves that distinct active pairs cannot
-share an agent. Rule replacement and its preservation properties remain to
-be defined.
+share an agent. `TriageConcrete.lean` defines executable rule replacement.
 
 `TriageRuleReadback.lean` follows the exported RHS wires of each `Triage`
 rule. It proves the expressions passed to `Eval` are respectively `w`, `x u`,
@@ -70,6 +69,13 @@ The stronger executable `valid` check also tracks fresh ID allocation, and a
 general theorem proves that every rule replacement preserves that ID bound
 and cannot duplicate a live agent ID. The remaining generic preservation
 lemma is for the alternating wire splice across the rule boundary.
+`TriageBoundary.lean` proves the local conditions for that splice: each old
+and replacement layer is a matching, the active principal wire is absent
+from the old layer, and every applicable rule auxiliary port occurs in both
+layers. It also proves that retained old wires and direct replacement wires
+have disjoint endpoints. The path-following splice still needs a general
+proof that it pairs every remaining exposed endpoint exactly once, with
+enough fuel to traverse each interface path.
 A separate bounded check explores every redex choice in one copying net; each
 schedule terminates within 40 interactions at the same tree and keeps the
 stronger validity invariant throughout.
