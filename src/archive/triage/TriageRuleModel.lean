@@ -1,3 +1,9 @@
+/-
+Copyright (c) 2026 Aron Adler. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Aron Adler
+-/
+
 /-!
 A finite model of the rule templates used by netties' interaction-net engine.
 The separate generated `TriageRules.lean` contains the actual agent and wire
