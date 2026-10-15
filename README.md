@@ -1,10 +1,12 @@
 # boom 💥
 
-Dutch for *tree*. Also: 💥.
+Dutch for _tree_. Also: 💥.
 
 A Lean 4 formalisation of [tree calculus](https://treecalcul.us/) — specifically the **triage** (five-rule) variant suggested by Johannes Bader and used on that site / in Barry Jay’s later work. Programs and values are unlabeled binary trees (leaf / stem / fork); the sole operator is △.
 
-Extracted from a personal experiments monorepo with history intact.
+`#tree t` shows a term as an interactive tree in the Lean infoview. Orange nodes are redexes: click one to rewrite it, or step, play and run through a reduction. Every step is computed in Lean by a rewrite function proved sound against the reduction relation.
+
+![boom demo](assets/boom-demo.gif)
 
 ## Building
 
@@ -28,6 +30,6 @@ theorem does not establish confluence for `Term`.
 
 ## References
 
-- Barry Jay. *Reflective Programs in Tree Calculus.* (book)
+- Barry Jay. _Reflective Programs in Tree Calculus._ (book)
 - [treecalcul.us](https://treecalcul.us/) — demos and specification (Johannes Bader)
 - Barry Jay. [Calculus, calculi](https://github.com/barry-jay-personal/blog/blob/main/2024-12-12-calculus-calculi.md) — original three-rule tree calculus vs triage calculus
