@@ -5,7 +5,13 @@ defaultTargets = ["Boom"]
 [[lean_lib]]
 name = "Boom"
 srcDir = "src"
-roots = ["TreeCalculus", "TriageMachine", "TriageRuleModel", "TriageRules", "TriageGraph", "TriageRuleReadback", "TriageResources", "TriageInspection", "TriageRuleProperties", "TriageConcrete", "TriageBoundary", "TriagePaths", "TriageSplicePaths", "TriageSplice", "TriagePreservation", "TriageReduction", "TriageInitial", "TriageEquivalence", "TriageResidual", "TriageAllocation", "TriageEncoding", "TriageLocalSemantics", "TriageDispatch", "TriageContraction", "TriageSpliceContraction", "TriageReplacementContraction", "TriagePortContraction", "TriageWireCommutation", "TriageEquivariance", "TriageConfluence", "TriageRawEncoding", "TriageResourceRules", "TriageResourceJobs", "TriageResourceExecution", "TriagePendingSources", "TriageContinuations", "TriageCaseCopy", "TriageCaseErase", "TriageCaseFork", "TriageCaseSimulation", "TriageDispatchResources"]
+roots = ["TreeCalculus"]
+
+# Archived TC implementation; opt in with `lake build TriageArchive`.
+[[lean_lib]]
+name = "TriageArchive"
+srcDir = "src/archive/triage"
+roots = ["TriageMachine", "TriageRuleModel", "TriageRules", "TriageGraph", "TriageRuleReadback", "TriageResources", "TriageInspection", "TriageRuleProperties", "TriageConcrete", "TriageBoundary", "TriagePaths", "TriageSplicePaths", "TriageSplice", "TriagePreservation", "TriageReduction", "TriageInitial", "TriageEquivalence", "TriageResidual", "TriageAllocation", "TriageEncoding", "TriageLocalSemantics", "TriageDispatch", "TriageContraction", "TriageSpliceContraction", "TriageReplacementContraction", "TriagePortContraction", "TriageWireCommutation", "TriageEquivariance", "TriageConfluence", "TriageRawEncoding", "TriageResourceRules", "TriageResourceJobs", "TriageResourceExecution", "TriagePendingSources", "TriageContinuations", "TriageCaseCopy", "TriageCaseErase", "TriageCaseFork", "TriageCaseSimulation", "TriageDispatchResources"]
 
 [[require]]
 name = "mathlib"
