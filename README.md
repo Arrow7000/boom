@@ -193,6 +193,19 @@ isomorphic results and identical syntax readbacks at every fuel bound. This
 applies to all finite source terms through `initial_confluence` and
 `initial_finished_readback`. It does not assert termination of every term.
 
+`TriageRawEncoding.lean` gives concrete representations of the four raw
+resource constructors and relates them to syntax readback.
+`TriageResourceRules.lean` connects abstract jobs to the eight exported
+copy/erase rules, including the child-controller and copy-output wiring.
+`TriageResourceJobs.lean` proves that each active represented job creates
+exactly its child jobs with intact raw payloads; all other represented jobs
+survive. `TriageResourceExecution.lean` proves that any finite forest of such
+jobs can be drained by actual executable steps, in exactly the sum of the
+raw-tree sizes. Every recorded administrative step reduces this measure by
+one, so arbitrary administrative job selection is well founded. These
+theorems concern the represented job forest; preserving and materializing
+the observable copied output is still a separate obligation.
+
 The remaining semantic obligation is a complete simulation between concrete
 net rewrites and `TriageMachine.Step`, including continuation stacks and
 administrative copy/erase steps. The concrete inspection transition is proved
