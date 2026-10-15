@@ -127,12 +127,13 @@ active pairs and the executable syntax readback at every fuel bound.
 or have disjoint agents. A replacement preserves the other disjoint choice,
 even when auxiliary wires connect the two pairs. Both orders are therefore
 valid executable schedules, with the same final allocation counter. Equality
-of their resulting wire graphs remains to be proved.
+of their resulting wire graphs is established below, up to the allocation
+block permutation.
 
 `TriageAllocation.lean` constructs the explicit bijection swapping the two
 fresh allocation blocks. Under that bijection, the complete agent lists of
 two independent replacements are permutations of one another and all kind
-lookups agree. The outstanding local diamond concerns wire connectivity.
+lookups agree. Wire connectivity is addressed below.
 
 `TriageEncoding.lean` relates raw source trees to concrete agents and wires.
 For every finite syntax, the source builder establishes this relation, and
@@ -164,6 +165,23 @@ separation assumption is needed. This is a universal local simulation of
 inspection, with no requirement that children be normalized. It does not
 yet prove reachability of every such represented state, simulate the full
 continuation stack, or discharge the resulting erasure tasks.
+
+`TriageContraction.lean` proves that contracting two sets of internal graph
+vertices is equivalent to contracting their union, so the order commutes.
+The theorem handles arbitrary directed edge relations and internal cycles.
+`TriageSpliceContraction.lean` proves that a complete alternating splice
+implements exactly this contraction of its interface vertices.
+`TriageReplacementContraction.lean` extends this characterization to the
+complete executable replacement, including retained surrounding wires.
+Its universal `replace_iff_contract` theorem characterizes the actual
+post-rewrite neighbor relation by paths through the removed pair.
+`TriagePortContraction.lean` translates this equation into a shared concrete
+port namespace. `TriageWireCommutation.lean` applies contraction commutation
+and the allocation block swap to prove `double_iso`: both orders of any two
+distinct executable choices produce isomorphic complete nets, including when
+auxiliary wires connect the pairs. This closes the executable local diamond;
+lifting it to arbitrary finite schedules still needs the reduction relation
+to respect isomorphisms and the global confluence argument.
 
 The remaining semantic obligations are confluence of concrete rewrites up to
 renaming allocated agents and reordering wire lists, and a simulation between
