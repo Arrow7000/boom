@@ -6,6 +6,12 @@ defaultTargets = ["Boom"]
 name = "Boom"
 srcDir = "src"
 roots = ["TreeCalculus"]
+needs = ["treeWidgetJs"]
+
+[[input_file]]
+name = "treeWidgetJs"
+path = "src/TreeCalculus/Widget/tree.js"
+text = true
 
 # Archived TC implementation; opt in with `lake build TriageArchive`.
 [[lean_lib]]

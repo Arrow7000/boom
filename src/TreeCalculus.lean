@@ -2,12 +2,14 @@ import Mathlib.Tactic.Tauto
 import Mathlib.Logic.Relation
 import TreeCalculus.Term
 import TreeCalculus.Redex
+import TreeCalculus.Widget
 
 /-!
 # Tree Calculus
 
 The canonical representation is `Term`, defined in `TreeCalculus.Term`.
 Rewriting and normal forms are defined here as relations on that syntax.
+Use `#tree expression` to inspect a term in the infoview without reducing it.
 The value/redex presentation and its proofs live in `TreeCalculus.ValOrRedex`.
 -/
 
@@ -39,8 +41,8 @@ Rule 1 shape `△ △ y z` = `term [△, y, z]`. -/
 #guard decide (△ ⬝ u = Term.term [u])
 #guard decide (△ ⬝ u ⬝ v = Term.term [u, v])
 
-#eval △ ⬝ △ ⬝ y ⬝ z
-#eval (△ ⬝ △ ⬝ ((△ ⬝ △) ⬝ x ⬝ (y ⬝ z)))
+#tree △ ⬝ △ ⬝ y ⬝ z
+#tree (△ ⬝ △ ⬝ ((△ ⬝ △) ⬝ x ⬝ (y ⬝ z)))
 
 
 inductive RewriteRules : (input output : Term) → Prop where
@@ -129,6 +131,14 @@ def combω : Term := △ ⬝ (△ ⬝ combI) ⬝ combI
 
 /-- Combinator `Ω` ≈ `ω ω`. -/
 def combΩ : Term := combω ⬝ combω
+
+-- Place the cursor on one of these commands to inspect the actual syntax tree.
+#tree combI
+#tree combω
+#tree combΩ
+
+-- A neutral stem containing a redex, which itself contains neutral leaves.
+#tree △ ⬝ (△ ⬝ △ ⬝ △ ⬝ △)
 
 /-- A term is in normal form when it is a leaf, stem, or fork built from normal subterms. -/
 inductive Term.NormalForm : Term → Prop where
