@@ -179,16 +179,26 @@ post-rewrite neighbor relation by paths through the removed pair.
 port namespace. `TriageWireCommutation.lean` applies contraction commutation
 and the allocation block swap to prove `double_iso`: both orders of any two
 distinct executable choices produce isomorphic complete nets, including when
-auxiliary wires connect the pairs. This closes the executable local diamond;
-lifting it to arbitrary finite schedules still needs the reduction relation
-to respect isomorphisms and the global confluence argument.
+auxiliary wires connect the pairs. This closes the executable local diamond.
 
-The remaining semantic obligations are confluence of concrete rewrites up to
-renaming allocated agents and reordering wire lists, and a simulation between
-concrete net rewrites and `TriageMachine.Step`, including the administrative
-copy and erase steps. That simulation must transfer the abstract structural
-inspection theorems to concrete execution. Universal graph validity does not
-yet establish agreement of outputs under arbitrary reduction schedules.
+`TriageEquivariance.lean` proves that executable steps respect isomorphisms
+with equal allocation counters that fix unused future IDs. The local diamond
+produces exactly these isomorphisms, so they can be moved past later steps.
+`TriageConfluence.lean` uses the local diamond and the Church-Rosser theorem
+to prove **confluence of all finite executable schedules from any valid net,
+up to graph isomorphism**. Its joining schedules consist of actual executable
+steps; renaming steps used inside the argument are postponed to the end.
+Consequently, every two stopped schedules from the same source have
+isomorphic results and identical syntax readbacks at every fuel bound. This
+applies to all finite source terms through `initial_confluence` and
+`initial_finished_readback`. It does not assert termination of every term.
+
+The remaining semantic obligation is a complete simulation between concrete
+net rewrites and `TriageMachine.Step`, including continuation stacks and
+administrative copy/erase steps. The concrete inspection transition is proved
+locally, and reduction order no longer affects stopped results. Establishing
+that those results agree with TC execution for all source terms still needs
+the complete simulation; the existing bounded examples do not supply it.
 
 ## References
 

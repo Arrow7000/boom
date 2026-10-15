@@ -143,7 +143,7 @@ theorem Net.choices_equal_or_disjoint {net : Net} (hvalid : net.valid = true)
     exact ⟨Ne.symm hshare.1, Ne.symm hshare.2.2.1, Ne.symm hshare.2.1, Ne.symm hshare.2.2.2⟩
 
 /-- Both orders of two distinct executable choices are valid schedules.
-Equality of their resulting graphs is the remaining local-diamond obligation. -/
+Their resulting graphs are compared separately in `TriageWireCommutation`. -/
 theorem Net.residual_schedules {net : Net} (hvalid : net.valid = true)
     {first second : Rule} {a b c d : Nat}
     (hf : (first, a, b) ∈ net.redexChoices)

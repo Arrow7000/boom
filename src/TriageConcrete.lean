@@ -9,8 +9,9 @@ import Mathlib.Data.List.Sigma
 An executable, wire-ID-free model of the netties reducer. It allocates fresh
 agent IDs, replaces an active pair by its exported RHS template, and follows
 alternating old/new interface wires to splice the surrounding graph. The
-model is deliberately small enough to execute in Lean; preservation and
-simulation theorems are still to be established.
+model is deliberately small enough to execute in Lean. Separate modules
+prove validity preservation, confluence up to isomorphism, and local semantic
+correspondence; complete machine simulation remains open.
 -/
 
 namespace TriageConcrete

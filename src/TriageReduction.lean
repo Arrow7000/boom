@@ -120,6 +120,16 @@ theorem Net.step_preserves_valid {net next : Net}
     (hvalid : net.valid = true) (hstep : net.step? = some next) :
     next.valid = true := Step.preserves_valid (Net.step_sound hstep) hvalid
 
+theorem Net.run_steps (fuel : Nat) (net : Net) : Steps net (net.run fuel) := by
+  induction fuel generalizing net with
+  | zero => exact .refl
+  | succ fuel ih =>
+      cases hs : net.step? with
+      | none => simpa only [Net.run, hs] using (Relation.ReflTransGen.refl : Steps net net)
+      | some next =>
+          simpa only [Net.run, hs] using
+            Relation.ReflTransGen.head (Net.step_sound hs) (ih next)
+
 theorem Net.run_preserves_valid (fuel : Nat) {net : Net}
     (hvalid : net.valid = true) : (net.run fuel).valid = true := by
   induction fuel generalizing net with
