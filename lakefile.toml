@@ -5,7 +5,7 @@ defaultTargets = ["Boom"]
 [[lean_lib]]
 name = "Boom"
 srcDir = "src"
-roots = ["TreeCalculus", "TriageMachine", "TriageRuleModel", "TriageRules", "TriageGraph", "TriageRuleReadback", "TriageResources", "TriageInspection", "TriageRuleProperties", "TriageConcrete", "TriageBoundary", "TriagePaths", "TriageSplicePaths", "TriageSplice", "TriagePreservation", "TriageReduction", "TriageInitial", "TriageEquivalence", "TriageResidual", "TriageAllocation", "TriageEncoding", "TriageLocalSemantics", "TriageDispatch", "TriageContraction", "TriageSpliceContraction", "TriageReplacementContraction", "TriagePortContraction", "TriageWireCommutation", "TriageEquivariance", "TriageConfluence", "TriageRawEncoding", "TriageResourceRules", "TriageResourceJobs", "TriageResourceExecution", "TriagePendingSources", "TriageContinuations", "TriageCaseCopy"]
+roots = ["TreeCalculus", "TriageMachine", "TriageRuleModel", "TriageRules", "TriageGraph", "TriageRuleReadback", "TriageResources", "TriageInspection", "TriageRuleProperties", "TriageConcrete", "TriageBoundary", "TriagePaths", "TriageSplicePaths", "TriageSplice", "TriagePreservation", "TriageReduction", "TriageInitial", "TriageEquivalence", "TriageResidual", "TriageAllocation", "TriageEncoding", "TriageLocalSemantics", "TriageDispatch", "TriageContraction", "TriageSpliceContraction", "TriageReplacementContraction", "TriagePortContraction", "TriageWireCommutation", "TriageEquivariance", "TriageConfluence", "TriageRawEncoding", "TriageResourceRules", "TriageResourceJobs", "TriageResourceExecution", "TriagePendingSources", "TriageContinuations", "TriageCaseCopy", "TriageCaseErase", "TriageCaseFork", "TriageCaseSimulation", "TriageDispatchResources"]
 
 [[require]]
 name = "mathlib"

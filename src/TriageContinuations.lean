@@ -18,6 +18,15 @@ theorem Source.complete {net : Net} {demand : End} {term : Syntax} (h : Source n
   rcases hr.complete with ⟨root, hl, hr⟩
   exact ⟨root, hl, hr.represents⟩
 
+theorem Source.of_represents {net : Net} (hv : net.valid = true)
+    {demand root : End} {term : Syntax} (hl : Linked net demand root) (hr : Represents net root term) :
+    Source net [] demand term := by
+  rcases hr.raw hv with ⟨raw, he, hraw⟩
+  exact ⟨raw, he, represented_reads hraw _ hl⟩
+
+theorem Source.rawInput {net : Net} {id slot : Nat} {term : Syntax}
+    (h : Source net [] (.agent id slot) term) : TriageDispatch.RawInput net id slot term := h.complete
+
 theorem Source.jobs_mono {net : Net} {first second : List Job} (hs : first ⊆ second)
     {demand : End} {term : Syntax} (h : Source net first demand term) : Source net second demand term := by
   rcases h with ⟨raw, he, hr⟩
@@ -110,6 +119,13 @@ theorem run_continuation {count : Nat} {net final : Net} {jobs after : List Job}
       intro hv hf h
       exact ih (hp.graph.preserves_valid hv) hp.forest (h.progress hv hf hp)
 
+theorem Source.run {count : Nat} {net final : Net} {jobs after : List Job}
+    (hrun : Run count net jobs final after) (hv : net.valid = true) (hf : Forest net jobs)
+    {demand : End} {term : Syntax} (ha : Anchor net demand) (h : Source net jobs demand term) :
+    Source final after demand term := by
+  rcases h with ⟨raw, he, hr⟩
+  exact ⟨raw, he, run_reads hrun hv hf ha hr⟩
+
 theorem run_control_kind {count : Nat} {net final : Net} {jobs after : List Job}
     (hrun : Run count net jobs final after) (hv : net.valid = true) {id : Nat} {kind : Kind}
     (hk : net.kind? id = some kind) (hm : kind ∈ controlKinds) : final.kind? id = some kind := by
@@ -134,6 +150,24 @@ theorem drain_continuation {net : Net} (hv : net.valid = true) {jobs : List Job}
     ∃ final, Run (cost jobs) net jobs final [] ∧ final.valid = true ∧ Continuation final [] input frames := by
   rcases drain hv hf with ⟨final, hrun, hvalid⟩
   exact ⟨final, hrun, hvalid, run_continuation hrun hv hf h⟩
+
+/-- Finish all represented resource jobs around a live evaluator. Its source,
+result wire, and complete continuation survive together. -/
+theorem drain_evaluator {net : Net} (hv : net.valid = true) {jobs : List Job} (hf : Forest net jobs)
+    {evalId : Nat} {continuation : End} {term : Syntax} {frames : List Frame}
+    (hk : net.kind? evalId = some .eval) (hs : Source net jobs (.agent evalId 0) term)
+    (hl : Linked net (.agent evalId 1) continuation) (hc : Continuation net jobs continuation frames) :
+    ∃ final, Run (cost jobs) net jobs final [] ∧ final.valid = true ∧
+      TriageDispatch.EvalTask final term continuation ∧ Continuation final [] continuation frames := by
+  rcases drain hv hf with ⟨final, hrun, hvalid⟩
+  have hsource := hs.run hrun hv hf (.agent hk (by decide))
+  rcases hsource.complete with ⟨root, hroot, hr⟩
+  have hkind := run_control_kind hrun hv hk (by decide)
+  have hlink := run_linked hrun hv (.agent hk (by decide)) hc.anchor hl
+  exact ⟨final, hrun, hvalid,
+    ⟨evalId, root, hkind, hr, hroot.neighbor (valid_wellFormed hvalid),
+      hlink.neighbor (valid_wellFormed hvalid)⟩,
+    run_continuation hrun hv hf hc⟩
 
 theorem Continuation.principal {net : Net} {jobs : List Job} {input : End} {frames : List Frame}
     (h : Continuation net jobs input frames) : input = .free 0 ∨ ∃ id, input = .agent id 0 := by
@@ -163,6 +197,54 @@ theorem Source.replace_aux {net : Net} (hv : net.valid = true)
   have hnext := hraw.replace hv hc hchild
   have hlink := hl.replace rule left right hout hchild
   exact ⟨raw, heq, represented_reads hnext _ hlink⟩
+
+theorem Source.replace_left_aux {net : Net} (hv : net.valid = true)
+    {rule : TriageRuleModel.Rule} {left right slot : Nat}
+    (hc : (rule, left, right) ∈ net.redexChoices) {term : Syntax} {demand : End}
+    (h : Source net [] (.agent left (slot + 1)) term)
+    (hnew : layerNeighbor (ruleLayer rule net.nextId) (.iface 0 (slot + 1)) = some (.real demand)) :
+    Source (net.replace rule left right) [] demand term := by
+  rcases h with ⟨raw, heq, hr⟩
+  rcases hr.complete with ⟨root, hl, hraw⟩
+  have ha := (Net.redexChoice_sound (valid_wellFormed hv) hc).2.1
+  have hout := child_outside (valid_wellFormed hv) ha hl hraw
+  have hnext := hraw.replace hv hc hout
+  have hlink := Net.replace_left_aux hv hc (hl.neighbor (valid_wellFormed hv)) hout hnew
+  exact ⟨raw, heq, represented_reads hnext _ (neighborIn_sound hlink)⟩
+
+theorem Source.replace_right_aux {net : Net} (hv : net.valid = true)
+    {rule : TriageRuleModel.Rule} {left right slot : Nat}
+    (hc : (rule, left, right) ∈ net.redexChoices) {term : Syntax} {demand : End}
+    (h : Source net [] (.agent right (slot + 1)) term)
+    (hnew : layerNeighbor (ruleLayer rule net.nextId) (.iface 1 (slot + 1)) = some (.real demand)) :
+    Source (net.replace rule left right) [] demand term := by
+  rcases h with ⟨raw, heq, hr⟩
+  rcases hr.complete with ⟨root, hl, hraw⟩
+  have ha := (Net.redexChoice_sound (valid_wellFormed hv) hc).2.1
+  have hout := child_outside (valid_wellFormed hv) ha hl hraw
+  have hnext := hraw.replace hv hc hout
+  have hlink := Net.replace_right_aux hv hc (hl.neighbor (valid_wellFormed hv)) hout hnew
+  exact ⟨raw, heq, represented_reads hnext _ (neighborIn_sound hlink)⟩
+
+/-- An unused raw input routed to a newly created eraser becomes an actual
+represented resource job, ready for the universal draining theorem. -/
+theorem Source.erase_left_aux {net : Net} (hv : net.valid = true)
+    {rule : TriageRuleModel.Rule} {left right slot eraser : Nat}
+    (hc : (rule, left, right) ∈ net.redexChoices) {term : Syntax}
+    (h : Source net [] (.agent left (slot + 1)) term)
+    (hk : (net.replace rule left right).kind? eraser = some .erase)
+    (hnew : layerNeighbor (ruleLayer rule net.nextId) (.iface 0 (slot + 1)) =
+      some (.real (.agent eraser 0))) :
+    ∃ raw source, raw.toSyntax = term ∧
+      TriageResourceJobs.Realizes (net.replace rule left right) ⟨.erase raw, eraser, source⟩ := by
+  rcases h with ⟨raw, heq, hr⟩
+  rcases hr.complete with ⟨root, hl, hraw⟩
+  rcases hraw.principal with ⟨source, rfl⟩
+  have ha := (Net.redexChoice_sound (valid_wellFormed hv) hc).2.1
+  have hout := child_outside (valid_wellFormed hv) ha hl hraw
+  have hnext := hraw.replace hv hc hout
+  have hlink := Net.replace_left_aux hv hc (hl.neighbor (valid_wellFormed hv)) hout hnew
+  exact ⟨raw, source, heq, hk, ⟨⟨_, hk⟩, ⟨_, hnext.kind⟩, hlink⟩, hnext⟩
 
 /-- Every ordinary concrete interaction preserves an untouched materialized
 continuation stack, including all its raw argument trees. -/

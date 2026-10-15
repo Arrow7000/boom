@@ -40,7 +40,8 @@ the whole-net simulation still needs the rewrite semantics.
 
 `TriageResources.lean` proves that finite copy/erase task trees terminate
 under any order of administrative steps. It abstracts from the copied output
-nets and will need to be connected to the concrete `Dup`/`Erase` rewrites.
+nets; the concrete resource modules described below establish the corresponding
+executable `Dup`/`Erase` results.
 
 `TriageInspection.lean` defines the finite static tree domain and proves its
 encoding is injective. For every such tree, the abstract machine reaches the
@@ -162,9 +163,10 @@ original TC term reduction relation under any abstract continuation. The
 continuation lies outside the replaced pair as a
 consequence of the input representations and matching invariant; no extra
 separation assumption is needed. This is a universal local simulation of
-inspection, with no requirement that children be normalized. It does not
-yet prove reachability of every such represented state, simulate the full
-continuation stack, or discharge the resulting erasure tasks.
+inspection, with no requirement that children be normalized. This module does not
+prove reachability of every such represented state. The continuation and
+erasure obligations for these local transitions are discharged by
+`TriageDispatchResources.lean` below.
 
 `TriageContraction.lean` proves that contracting two sets of internal graph
 vertices is equivalent to contracting their union, so the order commutes.
@@ -219,13 +221,28 @@ preserves every untouched materialized continuation stack.
 execution materializes `(x arg) (y arg)`, and the resulting evaluator retains
 the complete original continuation stack. The argument may contain arbitrary
 raw applications; no normalization or size bound is assumed.
+`TriageCaseErase.lean` proves the corresponding `Case/Leaf` transition,
+including complete erasure of the unused argument. `TriageCaseFork.lean`
+constructs the successor `Triage` frame with its exact raw branches.
+`TriageCaseSimulation.lean` combines all three cases into a universal concrete
+implementation of each abstract inspection transition, preserving the full
+successor continuation, and derives soundness for TC reduction.
+`TriageDispatchResources.lean` strengthens structural dispatch for all three
+head shapes: it creates the two actual erasure jobs for precisely the unused
+branches, drains them in their total raw-tree size, and preserves the selected
+source and full continuation. Its `dispatch_simulation` theorem supplies both
+the complete concrete execution and corresponding abstract machine step.
+The inspected raw children need not be normalized.
 
-The remaining semantic obligation is a complete simulation between concrete
-net rewrites and `TriageMachine.Step`, including continuation stacks and
-administrative copy/erase steps. The concrete inspection transition is proved
-locally, and reduction order no longer affects stopped results. Establishing
-that those results agree with TC execution for all source terms still needs
-the complete simulation; the existing bounded examples do not supply it.
+The remaining semantic obligation is to assemble a complete simulation for
+all source terms: finish the evaluator/call control transitions, relate
+initial nets to represented machine states, and connect finished states to
+output readback. All `Case` and `Triage` transitions now have universal local
+implementations with complete resource execution and represented continuation
+stacks. Confluence already establishes that reduction order cannot change
+stopped results. Agreement of those results with TC execution for every
+source term still needs the assembled simulation; bounded examples do not
+supply it.
 
 ## References
 

@@ -137,3 +137,29 @@ theorem Realizes.represents {net : Net} {root : End} {raw : Raw} (h : Realizes n
   | app hk hl hr _ _ ihl ihr => exact .app (Net.kind_mem hk) hl hr ihl ihr
 
 end TriageRawEncoding
+
+namespace TriageEncoding
+open TriageConcrete TriageBoundary TriagePreservation TriageResidual TriageResources
+
+/-- Syntax representation determines a raw constructor tree even when cached
+Stem/Fork nodes and application nodes have the same syntax readback. -/
+theorem Represents.raw {net : Net} (hv : net.valid = true)
+    {root : End} {term : TriageMachine.Syntax} (h : Represents net root term) :
+    ∃ raw : Raw, raw.toSyntax = term ∧ TriageRawEncoding.Realizes net root raw := by
+  have hk : ∀ id kind, (id, kind) ∈ net.agents → net.kind? id = some kind :=
+    fun _ _ hm => Net.kind_of_mem ((Net.wellFormed_iff _).mp (valid_wellFormed hv)).1 hm
+  induction h with
+  | leaf hm => exact ⟨.leaf, rfl, .leaf (hk _ _ hm)⟩
+  | stem hm hl _ ih =>
+      rcases ih with ⟨raw, rfl, hr⟩
+      exact ⟨.stem raw, rfl, .stem (hk _ _ hm) hl hr⟩
+  | fork hm hl hr _ _ ihl ihr =>
+      rcases ihl with ⟨left, rfl, hleft⟩
+      rcases ihr with ⟨right, rfl, hright⟩
+      exact ⟨.fork left right, rfl, .fork (hk _ _ hm) hl hr hleft hright⟩
+  | app hm hl hr _ _ ihl ihr =>
+      rcases ihl with ⟨left, rfl, hleft⟩
+      rcases ihr with ⟨right, rfl, hright⟩
+      exact ⟨.app left right, rfl, .app (hk _ _ hm) hl hr hleft hright⟩
+
+end TriageEncoding
