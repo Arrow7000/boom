@@ -18,6 +18,11 @@ theorem Source.complete {net : Net} {demand : End} {term : Syntax} (h : Source n
   rcases hr.complete with ⟨root, hl, hr⟩
   exact ⟨root, hl, hr.represents⟩
 
+theorem Source.jobs_mono {net : Net} {first second : List Job} (hs : first ⊆ second)
+    {demand : End} {term : Syntax} (h : Source net first demand term) : Source net second demand term := by
+  rcases h with ⟨raw, he, hr⟩
+  exact ⟨raw, he, hr.jobs_mono hs⟩
+
 inductive Continuation (net : Net) (jobs : List Job) : End → List Frame → Prop where
   | halt : Continuation net jobs (.free 0) []
   | apply {id : Nat} {rest : End} {arg : Syntax} {frames : List Frame} :
@@ -39,6 +44,15 @@ theorem Continuation.anchor {net : Net} {jobs : List Job} {input : End} {frames 
   | apply hk _ _ _ => exact .agent hk (by decide)
   | inspect hk _ _ _ _ => exact .agent hk (by decide)
   | triage hk _ _ _ _ _ => exact .agent hk (by decide)
+
+theorem Continuation.jobs_mono {net : Net} {first second : List Job} (hs : first ⊆ second)
+    {input : End} {frames : List Frame} (h : Continuation net first input frames) :
+    Continuation net second input frames := by
+  induction h with
+  | halt => exact .halt
+  | apply hk hl ha _ ih => exact .apply hk hl (ha.jobs_mono hs) ih
+  | inspect hk hl hy ha _ ih => exact .inspect hk hl (hy.jobs_mono hs) (ha.jobs_mono hs) ih
+  | triage hk hl hw hx hy _ ih => exact .triage hk hl (hw.jobs_mono hs) (hx.jobs_mono hs) (hy.jobs_mono hs) ih
 
 theorem control_progress {net target : Net} {jobs after : List Job}
     (hv : net.valid = true) (hp : Progress net jobs target after) {id : Nat} {kind : Kind}

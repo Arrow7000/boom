@@ -25,6 +25,12 @@ theorem Reads.complete {net : Net} {demand : End} {raw : Raw} (h : Reads net [] 
       exact ih index child hget
   | pending hm _ _ _ => cases hm
 
+theorem Reads.jobs_mono {net : Net} {first second : List Job} (hs : first ⊆ second)
+    {demand : End} {raw : Raw} (h : Reads net first demand raw) : Reads net second demand raw := by
+  induction h with
+  | node hl hk _ ih => exact .node hl hk ih
+  | pending hm ht ho hl => exact .pending (hs hm) ht ho hl
+
 theorem represented_reads {net : Net} {jobs : List Job} {root : End} {raw : Raw}
     (h : TriageRawEncoding.Realizes net root raw) :
     ∀ demand, Linked net demand root → Reads net jobs demand raw := by

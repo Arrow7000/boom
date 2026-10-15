@@ -214,6 +214,11 @@ all such observed raw sources while draining the erasure job.
 continuation stack and its argument sources. Resource execution preserves
 the stack, including pending argument copies, and an ordinary interaction
 preserves every untouched materialized continuation stack.
+`TriageCaseCopy.lean` proves a complete concrete macro transition for
+`Case/Stem`: the case interaction starts a represented copy job, its finite
+execution materializes `(x arg) (y arg)`, and the resulting evaluator retains
+the complete original continuation stack. The argument may contain arbitrary
+raw applications; no normalization or size bound is assumed.
 
 The remaining semantic obligation is a complete simulation between concrete
 net rewrites and `TriageMachine.Step`, including continuation stacks and
