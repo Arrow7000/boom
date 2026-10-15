@@ -203,8 +203,17 @@ survive. `TriageResourceExecution.lean` proves that any finite forest of such
 jobs can be drained by actual executable steps, in exactly the sum of the
 raw-tree sizes. Every recorded administrative step reduces this measure by
 one, so arbitrary administrative job selection is well founded. These
-theorems concern the represented job forest; preserving and materializing
-the observable copied output is still a separate obligation.
+theorems concern the represented job forest.
+`TriagePendingSources.lean` describes sources containing pending copies and
+proves that administrative execution preserves their exact raw structure.
+Draining a forest materializes all sources observed at free, evaluator, and
+continuation ports simultaneously. Its `copy_correct` theorem produces two
+distinct concrete roots with the original raw tree; `erase_correct` preserves
+all such observed raw sources while draining the erasure job.
+`TriageContinuations.lean` represents the complete `Call`/`Case`/`Triage`
+continuation stack and its argument sources. Resource execution preserves
+the stack, including pending argument copies, and an ordinary interaction
+preserves every untouched materialized continuation stack.
 
 The remaining semantic obligation is a complete simulation between concrete
 net rewrites and `TriageMachine.Step`, including continuation stacks and
