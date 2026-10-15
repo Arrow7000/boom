@@ -15,6 +15,17 @@ lake exe cache get   # download prebuilt Mathlib oleans (don't recompile Mathlib
 lake build
 ```
 
+## Tree Calculus representations
+
+`Term` in `TreeCalculus.Term` is the canonical syntax representation: a node
+with an ordered list of arguments, with reduction and normal forms defined
+separately in `TreeCalculus.lean`. The `Value` / `ValOrRedex` presentation and
+its proofs live in `TreeCalculus.ValOrRedex` (check with
+`lake build TreeCalculus.ValOrRedex`). Both presentations remain available for
+future comparisons and equivalence results. Their current reduction relations
+differ: the `ValOrRedex` relation discards trailing arguments, so its confluence
+theorem does not establish confluence for `Term`.
+
 ## Current research: native reflection for interaction nets
 
 Find a small interaction-net system combining native structural reflection
