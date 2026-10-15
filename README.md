@@ -26,52 +26,6 @@ future comparisons and equivalence results. Their current reduction relations
 differ: the `ValOrRedex` relation discards trailing arguments, so its confluence
 theorem does not establish confluence for `Term`.
 
-## Viewing Tree Calculus terms
-
-Open `src/TreeCalculus.lean` in VS Code with the Lean extension. Each `#tree`
-produces an info message containing the interactive tree, with the same
-editor information marker as `#eval`. Select the command to see its message
-in the infoview, or find it in All Messages:
-
-```lean
-#tree △ ⬝ △ ⬝ (△ ⬝ △)
-#tree combI
-#tree combΩ
-#tree △ ⬝ (△ ⬝ △ ⬝ △ ⬝ △)
-```
-
-Drag to pan, use **+ / −** to zoom, and **Fit** to reset the view. Hover a graph
-node to highlight its subtree in the expanded `△` / `⬝` expression below;
-hover part of that expression to highlight the corresponding graph subtree.
-Click a graph node or a triangle to inspect its path, shape, and size. The
-triangles also support keyboard focus and Enter/Space to select. The expanded
-expression stays visible when selecting nodes, and supports scrolling for
-large terms. This interaction is within the infoview widget, not the editor's
-source text.
-
-The **Colours** selector defaults to **Redexes**. Orange marks a node where a
-rewrite rule can fire immediately; other nodes and the connecting edges stay
-neutral. Each node is classified independently, so a neutral stem can contain
-an orange redex with neutral leaves inside it. Neutral means no local rewrite,
-not that the whole subtree is in normal form. Hover or select a node to see its
-applicable rule (1, 2, 3a, 3b, or 3c). A node with more than three arguments
-also counts when its first three form a redex; the extra arguments are retained.
-The classifier is checked against `RewriteRules` by Lean proofs in the main file.
-
-**Branches** keeps the structural colouring: colours change on outgoing
-branches at each split, and straight stems keep their colour. **None** uses
-neutral colours throughout. All modes keep the expression and diagram linked.
-Children run left to right, including all arguments at nodes with three or more children.
-`#tree` evaluates the Lean expression to obtain its syntax; it performs no
-Tree Calculus reduction. Like `#eval`, it needs a closed, executable expression.
-
-For a separate file, `import TreeCalculus.Widget` provides the syntax and the
-widget without the main file's proofs and examples. `#html (t : Term)` also
-works. The widget uses the existing ProofWidgets dependency and the infoview's
-React runtime; no npm setup is required. Its Lean implementation and JavaScript
-live together in `src/TreeCalculus/Widget/`; `TreeCalculus.Widget` is the import entry point.
-
-
 ## Current research: native reflection for interaction nets
 
 Find a small interaction-net system combining native structural reflection
@@ -124,15 +78,6 @@ and distinguish partial quoting mechanisms from the full requirement. This
 is a mathematical obstruction with executable witnesses, not a new Lean
 formalization. Meeting the unchanged reflection requirement needs a change to
 the interaction model; adding ordinary agents alone cannot remove it.
-
-## Archived TC implementation
-
-The earlier TC-oriented interaction-net formalization is preserved in
-[src/archive/triage](src/archive/triage/README.md), with its detailed proof
-inventory and limitations. Its optional library is `TriageArchive`; it is not
-part of `lake build` / the default `Boom` target, whose root is `TreeCalculus`.
-The archived implementation and its unfinished proof roadmap are background
-reference, not the current research objective.
 
 ## References
 
