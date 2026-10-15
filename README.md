@@ -31,3 +31,7 @@ Both are kept around to compare them. Note that their reduction relations are cu
 - Barry Jay. _Reflective Programs in Tree Calculus._ (book)
 - [treecalcul.us](https://treecalcul.us/) — demos and specification (Johannes Bader)
 - Barry Jay. [Calculus, calculi](https://github.com/barry-jay-personal/blog/blob/main/2024-12-12-calculus-calculi.md) — original three-rule tree calculus vs triage calculus
+
+## License
+
+Copyright (c) 2025-2026 Aron Adler. Released under the [Apache License 2.0](LICENSE); see also [NOTICE](NOTICE).
