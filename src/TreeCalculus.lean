@@ -1,6 +1,7 @@
 import Mathlib.Tactic.Tauto
 import Mathlib.Logic.Relation
 import TreeCalculus.Term
+import TreeCalculus.Redex
 
 /-!
 # Tree Calculus
@@ -62,6 +63,36 @@ inductive RewriteRules : (input output : Term) → Prop where
   | threeC {w x y u v : Term} :
     RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u⬝v))
       (y⬝u⬝v)
+
+/-- Every reported local rule is an actual rewrite rule. -/
+theorem Term.rootRule_sound (h : t.rootRule = some rule) :
+    ∃ output, RewriteRules t output := by
+  unfold Term.rootRule at h
+  split at h
+  · exact ⟨_, .one⟩
+  · exact ⟨_, .two⟩
+  · exact ⟨_, .threeA⟩
+  · exact ⟨_, .threeB⟩
+  · exact ⟨_, .threeC⟩
+  · contradiction
+
+/-- The local classifier detects exactly the roots accepted by `RewriteRules`. -/
+theorem Term.rootRule_correct (t : Term) :
+    t.rootRule.isSome = true ↔ ∃ output, RewriteRules t output := by
+  constructor
+  · intro h
+    cases heq : t.rootRule with
+    | none => simp [heq] at h
+    | some rule => exact Term.rootRule_sound heq
+  · rintro ⟨_, h⟩
+    cases h <;> rfl
+
+/-- Extra arguments do not hide a rewrite site in the application prefix. -/
+theorem Term.redexRule_prefix_correct (a b c : Term) (rest : List Term) :
+    (Term.term (a :: b :: c :: rest)).redexRule.isSome = true ↔
+      ∃ output, RewriteRules (Term.term [a, b, c]) output :=
+  Term.rootRule_correct _
+
 
 -- Full reduction relation: includes the 5 rules + congruence
 @[grind cases]
