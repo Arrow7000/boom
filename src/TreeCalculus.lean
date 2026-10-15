@@ -137,6 +137,11 @@ def combΩ : Term := combω ⬝ combω
 #tree combω
 #tree combΩ
 
+-- The widget's executable stepping, on the same examples.
+#guard (Term.ofJson? combΩ.treeJson).toOption == some combΩ
+#guard ((combI ⬝ (△ ⬝ △)).runOutermost 100 1000).1 == △ ⬝ △
+#guard (combΩ.runOutermost 50 100000).1.firstRedex?.isSome
+
 -- A neutral stem containing a redex, which itself contains neutral leaves.
 #tree △ ⬝ (△ ⬝ △ ⬝ △ ⬝ △)
 
@@ -254,6 +259,66 @@ theorem Reduces.congr_foldl {t t' : Term} (args : List Term) (h : Reduces t t') 
   induction args generalizing t t' with
   | nil => exact h
   | cons a as ih => exact ih (Reduces.congr_left h)
+
+/-! ### Soundness of executable rewriting -/
+
+theorem Term.rootRewrite?_sound {t t' : Term} (h : t.rootRewrite? = some t') :
+    RewriteRules t t' := by
+  unfold Term.rootRewrite? at h
+  split at h <;> cases h
+  · exact .one
+  · exact .two
+  · exact .threeA
+  · exact .threeB
+  · exact .threeC
+
+theorem Term.rewrite?_sound {t t' : Term} (h : t.rewrite? = some t') : Reduces t t' := by
+  unfold Term.rewrite? at h
+  split at h
+  · rename_i a b c rest
+    obtain ⟨r, hr, rfl⟩ := Option.map_eq_some_iff.mp h
+    have : Term.term (a :: b :: c :: rest) = rest.foldl (· ⬝ ·) (.term [a, b, c]) := by
+      rw [Term.foldl_apply]; rfl
+    rw [this]
+    exact Reduces.congr_foldl rest (.rule (Term.rootRewrite?_sound hr))
+  · cases h
+
+/-- Any argument can be rewritten in place: earlier arguments are a prefix
+application (`congr_right`), later ones are reattached (`congr_left`). -/
+theorem Reduces.congr_arg {cs : List Term} {i : Nat} {c c' : Term}
+    (hi : cs[i]? = some c) (h : Reduces c c') : Reduces (.term cs) (.term (cs.set i c')) := by
+  obtain ⟨hlt, rfl⟩ := List.getElem?_eq_some_iff.mp hi
+  have hsplit : ∀ x, Term.term (cs.take i ++ x :: cs.drop (i + 1)) =
+      (cs.drop (i + 1)).foldl (· ⬝ ·) (Term.term (cs.take i) ⬝ x) := by
+    intro x; rw [Term.foldl_apply]; simp
+  have hcs : cs = cs.take i ++ cs[i] :: cs.drop (i + 1) := by simp
+  rw [List.set_eq_take_append_cons_drop, if_pos hlt, hsplit]
+  have := Reduces.congr_foldl (cs.drop (i + 1)) (Reduces.congr_right (t1 := .term (cs.take i)) h)
+  rwa [← hsplit cs[i], ← hcs] at this
+
+/-- Every step the widget shows is a `Reduces` step. -/
+theorem Term.rewriteAt?_sound {t t' : Term} {path : List Nat}
+    (h : t.rewriteAt? path = some t') : Reduces t t' := by
+  induction path generalizing t t' with
+  | nil => exact Term.rewrite?_sound h
+  | cons i path ih =>
+    obtain ⟨cs⟩ := t
+    simp only [Term.rewriteAt?, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at h
+    obtain ⟨c, hc, c', hc', rfl⟩ := h
+    exact Reduces.congr_arg hc (ih hc')
+
+theorem Term.rootRewrite?_isSome (a b c : Term) :
+    (Term.term [a, b, c]).rootRewrite?.isSome = (Term.term [a, b, c]).rootRule.isSome := by
+  obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := a <;>
+    obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := c <;> rfl
+
+/-- The widget colours exactly the nodes it can rewrite. -/
+theorem Term.rewrite?_isSome (t : Term) : t.rewrite?.isSome = t.redexRule.isSome := by
+  unfold Term.rewrite? Term.redexRule
+  split
+  · rw [Option.isSome_map]; exact Term.rootRewrite?_isSome ..
+  · rfl
 
 theorem Term.NormalForm.numChildren_le_two {t : Term} (h : t.NormalForm) :
     t.numChildren ≤ 2 := by
