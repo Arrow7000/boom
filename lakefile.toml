@@ -28,4 +28,4 @@ roots = ["TriageMachine", "TriageRuleModel", "TriageRules", "TriageGraph", "Tria
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.26.0"
+rev = "v4.35.0"

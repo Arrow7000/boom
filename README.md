@@ -10,7 +10,7 @@ You can also explore terms visually: the `#tree t` command renders an interactiv
 
 ## Building
 
-Requires the Lean toolchain pinned in `lean-toolchain` (`leanprover/lean4:v4.26.0`, managed by `elan`). On a fresh clone:
+Requires the Lean toolchain pinned in `lean-toolchain` (`leanprover/lean4:v4.35.0`, managed by `elan`). On a fresh clone:
 
 ```bash
 lake exe cache get   # download prebuilt Mathlib oleans (don't recompile Mathlib!)

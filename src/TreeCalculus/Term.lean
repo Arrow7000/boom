@@ -56,7 +56,7 @@ def Term.decEq (a b : Term) : Decidable (a = b) :=
 theorem Term.nil_ne_cons : ∀ (a : Term) (as : List Term), Term.term [] ≠ Term.term (a :: as) := by
   intro a as h
   injection h with h'
-  exact List.noConfusion h'
+  cases h'
 
 -- Mark term constructor as injective for simp
 @[simp, grind =]
@@ -229,7 +229,7 @@ theorem Reduces.congr_arg {cs : List Term} {i : Nat} {c c' : Term}
       (cs.drop (i + 1)).foldl (· ⬝ ·) (Term.term (cs.take i) ⬝ x) := by
     intro x; rw [Term.foldl_apply]; simp
   have hcs : cs = cs.take i ++ cs[i] :: cs.drop (i + 1) := by simp
-  rw [List.set_eq_take_append_cons_drop, if_pos hlt, hsplit]
+  rw [List.set_eq_take_append_cons_drop, ite_eq_left hlt, hsplit]
   have := Reduces.congr_foldl (cs.drop (i + 1)) (Reduces.congr_right (t1 := .term (cs.take i)) h)
   rwa [← hsplit cs[i], ← hcs] at this
 
