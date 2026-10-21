@@ -56,9 +56,16 @@ which case `Term.progress`.
 
 <details><summary>C1: the definition</summary>
 
-The simplest form is a function `f : ℕ → Term` with `f 0 = t` where every
-`f n` steps to `f (n+1)`. Lean's support for coinductive predicates is
-limited, so the function is the easy option.
+Three reasonable designs:
+- a function `f : ℕ → Term` with `f 0 = t`, where every `f n` steps to `f (n+1)`;
+- a `coinductive` predicate (works on this project's toolchain) with a single constructor:
+  "`t` steps to some `u` that again has an infinite reduction";
+- "some set of terms contains `t`, and every term in the set steps to another
+  term in the set". This is what the coinductive version unfolds to: look at
+  the `.coinduct` principle Lean generates for it.
+
+They make different parts of part C easy or hard, so it's worth seeing which
+is which.
 
 </details>
 
