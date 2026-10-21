@@ -21,7 +21,7 @@ lake build
 
 This project explores two different ways to formalise tree calculus:
 
-- **`TreeCalculus.Term`**: The canonical syntax. Terms are nodes with an ordered list of arguments. Reduction and normal forms are in `TreeCalculus.lean`.
+- **`TreeCalculus.Term`**: The canonical syntax. Terms are nodes with an ordered list of arguments. It also defines the rewrite rules and `Reduces`; normal forms and divergence are in `TreeCalculus.lean`.
 - **`TreeCalculus.ValOrRedex`**: An alternative presentation split into `Value` and `ValOrRedex` types.
 
 Both are kept around to compare them. Note that their reduction relations are currently slightly different: `ValOrRedex` drops trailing arguments, meaning its confluence theorem doesn't immediately carry over to `Term`.

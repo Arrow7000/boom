@@ -13,11 +13,17 @@ import TreeCalculus.Widget
 /-!
 # Tree Calculus
 
-The canonical representation is `Term`, defined in `TreeCalculus.Term`.
-Rewriting and normal forms are defined here as relations on that syntax.
+The syntax `Term`, the rewrite rules and `Reduces` are defined in
+`TreeCalculus.Term`. The executable rewriting used by the widget, and its
+agreement with `Reduces`, is in `TreeCalculus.Redex`. Regression checks for the
+widget's executable code are in `TreeCalculus.Tests`.
 Use `#tree expression` to inspect a term in the infoview without reducing it.
 The value/redex presentation and its proofs live in `TreeCalculus.ValOrRedex`.
 -/
+
+section Intuition
+
+/-! ## Intuition: what the syntax looks like -/
 
 def x := △
 def y := △
@@ -51,105 +57,61 @@ Rule 1 shape `△ △ y z` = `term [△, y, z]`. -/
 #tree (△ ⬝ △ ⬝ ((△ ⬝ △) ⬝ x ⬝ (y ⬝ z)))
 
 
-inductive RewriteRules : (input output : Term) → Prop where
-  | one {y z : Term} :
-    RewriteRules (△⬝△⬝y⬝z)
-      y
-
-  | two {x y z : Term} :
-    RewriteRules (△⬝(△⬝x)⬝y⬝z)
-      (x⬝z⬝(y⬝z))
-
-  | threeA {w x y : Term} :
-    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝△)
-      w
-
-  | threeB {w x y u : Term} :
-    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u))
-      (x⬝u)
-
-  | threeC {w x y u v : Term} :
-    RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u⬝v))
-      (y⬝u⬝v)
-
-/-- Every reported local rule is an actual rewrite rule. -/
-theorem Term.rootRule_sound (h : t.rootRule = some rule) :
-    ∃ output, RewriteRules t output := by
-  unfold Term.rootRule at h
-  split at h
-  · exact ⟨_, .one⟩
-  · exact ⟨_, .two⟩
-  · exact ⟨_, .threeA⟩
-  · exact ⟨_, .threeB⟩
-  · exact ⟨_, .threeC⟩
-  · contradiction
-
-/-- The local classifier detects exactly the roots accepted by `RewriteRules`. -/
-theorem Term.rootRule_correct (t : Term) :
-    t.rootRule.isSome = true ↔ ∃ output, RewriteRules t output := by
-  constructor
-  · intro h
-    cases heq : t.rootRule with
-    | none => simp [heq] at h
-    | some rule => exact Term.rootRule_sound heq
-  · rintro ⟨_, h⟩
-    cases h <;> rfl
-
-/-- Extra arguments do not hide a rewrite site in the application prefix. -/
-theorem Term.redexRule_prefix_correct (a b c : Term) (rest : List Term) :
-    (Term.term (a :: b :: c :: rest)).redexRule.isSome = true ↔
-      ∃ output, RewriteRules (Term.term [a, b, c]) output :=
-  Term.rootRule_correct _
+theorem Term.left_assoc {x y z} : (x ⬝ y) ⬝ z = x ⬝ y ⬝ z := rfl
 
 
--- Full reduction relation: includes the 5 rules + congruence
-@[grind cases]
-inductive Reduces : (input output : Term) → Prop where
-  | rule {t t' : Term} :
-      RewriteRules t t' →
-      Reduces t t'
-  | congr_left {t1 t1' t2 : Term} :
-      Reduces t1 t1' →
-      Reduces (t1⬝t2) (t1'⬝t2)
-  | congr_right {t1 t2 t2' : Term} :
-      Reduces t2 t2' →
-      Reduces (t1⬝t2) (t1⬝t2')
 
-/-- `t` diverges if every multi-step reduct is still one-step reducible.
-I.e. there is an infinite reduction sequence from `t`. -/
-def Term.Diverges (t : Term) : Prop :=
-  ∀ u, Relation.ReflTransGen Reduces t u → ∃ v, Reduces u v
+theorem Term.not_right_assoc : ¬(∀ x y z : Term, x ⬝ (y ⬝ z) = x ⬝ y ⬝ z) := by
+  simp
+  let a := △
+  let b := △⬝△
+  exists a,b,b
+  unfold a b
+  simp
 
-/-! Not strongly normalizing: some terms diverge.
 
-Intended witness (combinatory Ω):
-  `I = △ ⬝ (△ ⬝ (△ ⬝ △)) ⬝ (△ ⬝ △)` (≈ S K K)
-  `ω = △ ⬝ (△ ⬝ I) ⬝ I` (≈ S I I)
-  `Ω = ω ⬝ ω`
-Rule 2 (S-like duplication) keeps feeding fresh redexes, so reduction never
-reaches a normal form. -/
 
-/-- Combinator `I` ≈ `S K K`. -/
-def combI : Term := △ ⬝ (△ ⬝ (△ ⬝ △)) ⬝ (△ ⬝ △)
 
-/-- Combinator `ω` ≈ `S I I`. -/
-def combω : Term := △ ⬝ (△ ⬝ combI) ⬝ combI
+theorem Term.apply_includes_in_left {x y : Term} : x ⬝ y = .term (x.children ++ [y]) := by
+  simp [children]
+  grind
 
-/-- Combinator `Ω` ≈ `ω ω`. -/
-def combΩ : Term := combω ⬝ combω
+/-- This is what application actually _is_. Taking the leftmost term, and including everything to the right of it as its children. -/
+theorem Term.apply_includes_in_left_2 {x y z : Term} : x ⬝ y ⬝ z = .term (x.children ++ [y, z]) := by
+  simp [children]
+  grind
 
--- Place the cursor on one of these commands to inspect the actual syntax tree.
-#tree combI
-#tree combω
-#tree combΩ
 
--- The widget's executable stepping, on the same examples.
-#guard (Term.ofJson? combΩ.treeJson).toOption == some combΩ
-#guard ((combI ⬝ (△ ⬝ △)).runOutermost 100 1000).1 == △ ⬝ △
-#guard (combΩ.runOutermost 50 100000).1.firstRedex?.isSome
+theorem Term.apply_includes_in_left_3 {x y z w : Term} : x ⬝ y ⬝ z ⬝ w = .term (x.children ++ [y, z, w]) := by
+  simp [children]
+  grind
+
+
+
+
+theorem Term.empty_id : △ = .term [] := rfl
+
+theorem Term.singleton {a} : △⬝a = .term [a] := rfl
+
+theorem Term.bingleton {a b} : △⬝a⬝b = .term [a, b] := rfl
 
 -- A neutral stem containing a redex, which itself contains neutral leaves.
 #tree △ ⬝ (△ ⬝ △ ⬝ △ ⬝ △)
+
+end Intuition
+
+
+
+
+
+
+
+
+
+
+section NormalForms
+
+/-! ## Normal forms and progress -/
 
 /-- A term is in normal form when it is a leaf, stem, or fork built from normal subterms. -/
 inductive Term.NormalForm : Term → Prop where
@@ -208,123 +170,10 @@ theorem RewriteRules.fork_irreducible (t : Term) (h : t.IsFork) : t.IsNotRewrita
   intro output prem
   cases prem
 
-/-! ### Divergence of `combΩ`
-
-@TODO Proof strategy (restart — avoid general ΩArg/ΩReduct algebras):
-1. Keep/use the small helpers below (`numChildren*`, apply-eq, `combI`/`combω` NF, …).
-2. Progress: `∀ t, ¬ NormalForm t → ∃ v, Reduces t v` (arity / sizeOf; fire rewrite or congr).
-3. Invariant on *top-level shapes only* reachable from `combΩ`
-   (e.g. finite grammar: `ω ⬝ t` with `t` from a small arg set, plus length-≥4 apps;
-   or weaker: length ≥ 3 and never a top-level K-redex). Prove closed under `Reduces`
-   by case-bash on that grammar — do **not** invent a general “good subterm” predicate.
-4. Conclude every reduct is non-NF, hence `Diverges combΩ`.
-
-Do **not** rename the demo globals `x,y,z,u,v` — if binders clash, rename
-locals in the theorem or use `@RewriteRules.two _ _ _`. -/
-
 theorem Term.NormalForm.not_three_children {a b c : Term} :
     ¬ Term.NormalForm (△ ⬝ a ⬝ b ⬝ c) := by
   intro h
   cases h
-
-theorem Term.combΩ_not_normalForm : ¬ Term.NormalForm combΩ := by
-  intro h
-  change Term.NormalForm (△ ⬝ (△ ⬝ combI) ⬝ combI ⬝ combω) at h
-  exact Term.NormalForm.not_three_children h
-
-theorem Reduces.combΩ_step :
-    Reduces combΩ (combI ⬝ combω ⬝ (combI ⬝ combω)) := by
-  unfold combΩ combω
-  exact Reduces.rule (@RewriteRules.two combI combI combω)
-
-/-! #### Helpers kept from prior attempt -/
-
-def Term.numChildren : Term → Nat
-  | .term cs => cs.length
-
-@[simp] theorem Term.numChildren_apply (t1 t2 : Term) :
-    (t1 ⬝ t2).numChildren = t1.numChildren + 1 := by
-  cases t1; simp [Term.numChildren]
-
-theorem Term.foldl_apply (t : Term) (cs : List Term) :
-    cs.foldl (· ⬝ ·) t = match t with | .term ts => .term (ts ++ cs) := by
-  induction cs generalizing t with
-  | nil => cases t; simp
-  | cons a as ih =>
-    cases t with | term ts
-    simp only [List.foldl, Term.apply]
-    rw [ih]
-    simp [List.append_assoc]
-
-theorem Term.term_eq_foldl (cs : List Term) :
-    Term.term cs = cs.foldl (· ⬝ ·) △ := by
-  rw [Term.foldl_apply]; simp
-
-theorem Reduces.congr_foldl {t t' : Term} (args : List Term) (h : Reduces t t') :
-    Reduces (args.foldl (· ⬝ ·) t) (args.foldl (· ⬝ ·) t') := by
-  induction args generalizing t t' with
-  | nil => exact h
-  | cons a as ih => exact ih (Reduces.congr_left h)
-
-/-! ### Soundness of executable rewriting -/
-
-theorem Term.rootRewrite?_sound {t t' : Term} (h : t.rootRewrite? = some t') :
-    RewriteRules t t' := by
-  unfold Term.rootRewrite? at h
-  split at h <;> cases h
-  · exact .one
-  · exact .two
-  · exact .threeA
-  · exact .threeB
-  · exact .threeC
-
-theorem Term.rewrite?_sound {t t' : Term} (h : t.rewrite? = some t') : Reduces t t' := by
-  unfold Term.rewrite? at h
-  split at h
-  · rename_i a b c rest
-    obtain ⟨r, hr, rfl⟩ := Option.map_eq_some_iff.mp h
-    have : Term.term (a :: b :: c :: rest) = rest.foldl (· ⬝ ·) (.term [a, b, c]) := by
-      rw [Term.foldl_apply]; rfl
-    rw [this]
-    exact Reduces.congr_foldl rest (.rule (Term.rootRewrite?_sound hr))
-  · cases h
-
-/-- Any argument can be rewritten in place: earlier arguments are a prefix
-application (`congr_right`), later ones are reattached (`congr_left`). -/
-theorem Reduces.congr_arg {cs : List Term} {i : Nat} {c c' : Term}
-    (hi : cs[i]? = some c) (h : Reduces c c') : Reduces (.term cs) (.term (cs.set i c')) := by
-  obtain ⟨hlt, rfl⟩ := List.getElem?_eq_some_iff.mp hi
-  have hsplit : ∀ x, Term.term (cs.take i ++ x :: cs.drop (i + 1)) =
-      (cs.drop (i + 1)).foldl (· ⬝ ·) (Term.term (cs.take i) ⬝ x) := by
-    intro x; rw [Term.foldl_apply]; simp
-  have hcs : cs = cs.take i ++ cs[i] :: cs.drop (i + 1) := by simp
-  rw [List.set_eq_take_append_cons_drop, if_pos hlt, hsplit]
-  have := Reduces.congr_foldl (cs.drop (i + 1)) (Reduces.congr_right (t1 := .term (cs.take i)) h)
-  rwa [← hsplit cs[i], ← hcs] at this
-
-/-- Every step the widget shows is a `Reduces` step. -/
-theorem Term.rewriteAt?_sound {t t' : Term} {path : List Nat}
-    (h : t.rewriteAt? path = some t') : Reduces t t' := by
-  induction path generalizing t t' with
-  | nil => exact Term.rewrite?_sound h
-  | cons i path ih =>
-    obtain ⟨cs⟩ := t
-    simp only [Term.rewriteAt?, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨c, hc, c', hc', rfl⟩ := h
-    exact Reduces.congr_arg hc (ih hc')
-
-theorem Term.rootRewrite?_isSome (a b c : Term) :
-    (Term.term [a, b, c]).rootRewrite?.isSome = (Term.term [a, b, c]).rootRule.isSome := by
-  obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := a <;>
-    obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := c <;> rfl
-
-/-- The widget colours exactly the nodes it can rewrite. -/
-theorem Term.rewrite?_isSome (t : Term) : t.rewrite?.isSome = t.redexRule.isSome := by
-  unfold Term.rewrite? Term.redexRule
-  split
-  · rw [Option.isSome_map]; exact Term.rootRewrite?_isSome ..
-  · rfl
 
 theorem Term.NormalForm.numChildren_le_two {t : Term} (h : t.NormalForm) :
     t.numChildren ≤ 2 := by
@@ -339,67 +188,6 @@ theorem Term.not_normalForm_of_numChildren_ge_three {t : Term}
   have := hnf.numChildren_le_two
   omega
 
-theorem Term.apply_ne_delta (fn arg : Term) : fn ⬝ arg ≠ △ := by
-  cases fn with | term cs
-  simp [Term.apply]
-
-theorem Term.eq_stem_of_apply {t1 t2 a : Term} (h : t1 ⬝ t2 = △ ⬝ a) :
-    t1 = △ ∧ t2 = a := by
-  cases t1 with | term cs
-  simp [Term.apply] at h
-  match cs with
-  | [] =>
-    simp at h
-    exact ⟨rfl, h⟩
-  | head :: tail =>
-    have hlen := congrArg List.length h
-    simp at hlen
-
-theorem Term.eq_fork_of_apply {t1 t2 a b : Term} (h : t1 ⬝ t2 = △ ⬝ a ⬝ b) :
-    t1 = △ ⬝ a ∧ t2 = b := by
-  cases t1 with | term cs
-  simp [Term.apply] at h
-  match cs with
-  | [] => simp at h
-  | [x] =>
-    simp at h
-    refine ⟨?_, h.2⟩
-    simp [Term.apply, h.1]
-  | x :: y :: zs =>
-    have hlen := congrArg List.length h
-    simp at hlen
-
-/-- Combinator `I` is a normal form. -/
-theorem combI_normalForm : Term.NormalForm combI := by
-  unfold combI
-  refine Term.NormalForm.fork _ _ ?_ ?_
-  · exact Term.NormalForm.stem _ (Term.NormalForm.stem _ Term.NormalForm.leaf)
-  · exact Term.NormalForm.stem _ Term.NormalForm.leaf
-
-/-- Combinator `ω` is a normal form. -/
-theorem combω_normalForm : Term.NormalForm combω := by
-  unfold combω
-  exact Term.NormalForm.fork _ _ (Term.NormalForm.stem _ combI_normalForm) combI_normalForm
-
-/-! #### Progress: non-NF terms have a one-step reduct -/
-
-/-- Explicit weight: nested `sizeOf` on `Term`/`List` is awkward for `omega`. -/
-def Term.weight : Term → Nat
-  | .term cs => 1 + (cs.map weight).sum
-
-theorem Term.weight_lt_of_mem {a : Term} {cs : List Term} (h : a ∈ cs) :
-    a.weight < (Term.term cs).weight := by
-  induction cs with
-  | nil => cases h
-  | cons b bs ih =>
-    simp [Term.weight] at *
-    cases h with
-    | inl heq => subst heq; omega
-    | inr hmem =>
-      have := ih hmem
-      simp at this ⊢
-      omega
-
 /-- Avoid dependent elim on `NormalForm (t1 ⬝ t2)` by expanding to equalities. -/
 theorem Term.NormalForm.as_cases {t : Term} (h : t.NormalForm) :
     t = △ ∨
@@ -409,10 +197,6 @@ theorem Term.NormalForm.as_cases {t : Term} (h : t.NormalForm) :
   | leaf => exact Or.inl rfl
   | stem a ha => exact Or.inr (Or.inl ⟨a, rfl, ha⟩)
   | fork a b ha hb => exact Or.inr (Or.inr ⟨a, b, rfl, ha, hb⟩)
-
-theorem RewriteRules.numChildren_eq_three {t t' : Term}
-    (h : RewriteRules t t') : t.numChildren = 3 := by
-  cases h <;> simp [Term.numChildren, Term.apply]
 
 theorem Term.reduces_not_of_normalForm {t t' : Term}
     (hr : Reduces t t') (hnf : t.NormalForm) : False := by
@@ -443,6 +227,8 @@ theorem Term.reduces_not_of_normalForm {t t' : Term}
 
 theorem Term.NormalForm.irreducible {t : Term} (h : t.NormalForm) :
     ∀ t', ¬ Reduces t t' := fun _ hr => Term.reduces_not_of_normalForm hr h
+
+/-! #### Progress: non-NF terms have a one-step reduct -/
 
 /-- Fire the matching rewrite on a length-3 term whose first child is a value. -/
 theorem Term.exists_reduces_of_three {a b c : Term}
@@ -547,19 +333,112 @@ theorem Term.progress {t : Term} (h : ¬ t.NormalForm) : ∃ t', Reduces t t' :=
         exact Reduces.congr_foldl rest hr3
   exact helper t.weight t rfl h
 
+end NormalForms
+
+
+
+
+
+
+
+
+
+
+
+section Divergence
+
+/-! ## Divergence -/
+
+/-- `t` diverges if every multi-step reduct is still one-step reducible,
+i.e. `t` has no normal form. This is stronger than having some infinite
+reduction sequence: `K △ Ω` has one, but also reduces to `△`. -/
+def Term.Diverges (t : Term) : Prop :=
+  ∀ u, Relation.ReflTransGen Reduces t u → ∃ v, Reduces u v
+
+/-! Not strongly normalizing: some terms diverge.
+
+Intended witness (combinatory Ω):
+  `I = △ ⬝ (△ ⬝ (△ ⬝ △)) ⬝ (△ ⬝ △)` (≈ S K K)
+  `ω = △ ⬝ (△ ⬝ I) ⬝ I` (≈ S I I)
+  `Ω = ω ⬝ ω`
+Rule 2 (S-like duplication) keeps feeding fresh redexes, so reduction never
+reaches a normal form. -/
+
+/-- Combinator `I` ≈ `S K K`. -/
+def combI : Term := △ ⬝ (△ ⬝ (△ ⬝ △)) ⬝ (△ ⬝ △)
+
+/-- Combinator `ω` ≈ `S I I`. -/
+def combω : Term := △ ⬝ (△ ⬝ combI) ⬝ combI
+
+/-- Combinator `Ω` ≈ `ω ω`. -/
+def combΩ : Term := combω ⬝ combω
+
+-- Place the cursor on one of these commands to inspect the actual syntax tree.
+#tree combI
+#tree combω
+#tree combΩ
+
+/-! ### Divergence of `combΩ`
+
+Proof strategy (done, see `combΩ_diverges` below):
+1. Small helpers below (`numChildren*`, apply-eq, `combI`/`combω` NF, …).
+2. Progress: `∀ t, ¬ NormalForm t → ∃ v, Reduces t v` (arity / sizeOf; fire rewrite or congr).
+3. Invariant on *top-level shapes only* reachable from `combΩ`
+   (e.g. finite grammar: `ω ⬝ t` with `t` from a small arg set, plus length-≥4 apps;
+   or weaker: length ≥ 3 and never a top-level K-redex). Prove closed under `Reduces`
+   by case-bash on that grammar — do **not** invent a general “good subterm” predicate.
+4. Conclude every reduct is non-NF, hence `Diverges combΩ`.
+
+Do **not** rename the demo globals `x,y,z,u,v` — if binders clash, rename
+locals in the theorem or use `@RewriteRules.two _ _ _`. -/
+
+theorem Term.combΩ_not_normalForm : ¬ Term.NormalForm combΩ := by
+  intro h
+  change Term.NormalForm (△ ⬝ (△ ⬝ combI) ⬝ combI ⬝ combω) at h
+  exact Term.NormalForm.not_three_children h
+
+theorem Reduces.combΩ_step :
+    Reduces combΩ (combI ⬝ combω ⬝ (combI ⬝ combω)) := by
+  unfold combΩ combω
+  exact Reduces.rule (@RewriteRules.two combI combI combω)
+
+/-- Combinator `I` is a normal form. -/
+theorem combI_normalForm : Term.NormalForm combI := by
+  unfold combI
+  refine Term.NormalForm.fork _ _ ?_ ?_
+  · exact Term.NormalForm.stem _ (Term.NormalForm.stem _ Term.NormalForm.leaf)
+  · exact Term.NormalForm.stem _ Term.NormalForm.leaf
+
+/-- Combinator `ω` is a normal form. -/
+theorem combω_normalForm : Term.NormalForm combω := by
+  unfold combω
+  exact Term.NormalForm.fork _ _ (Term.NormalForm.stem _ combI_normalForm) combI_normalForm
+
 /-! #### Top-level shape invariant for `combΩ` reducts
 
-Spine grammar (not a general “good child” algebra):
-* `ΩArg`: `combω`, or `combI ⬝ a`, or a (possibly mismatched) K-redex body
-* `ΩForm`: `combω ⬝ a`, `combI ⬝ a ⬝ b`, or K-prefix applied to one more arg -/
+Used to prove `Diverges combΩ`: every one-step reduct of an `ΩForm` is again
+an `ΩForm`, and every `ΩForm` has ≥ 3 children so is never in normal form. -/
 
 mutual
+/-- Arguments that appear under `combω` / `combI` / K-bodies while reducing
+`combΩ`. Closed under reduction: reducing an `ΩArg` yields another `ΩArg`.
+
+Constructors track the three shapes that show up on that spine:
+* `ω` — plain `combω`
+* `I` — a stuck or reducing `combI ⬝ a` (which rewrites to a K-body)
+* `K` — the K-redex body `(△ ⬝ △) ⬝ a ⬝ ((△ ⬝ △) ⬝ b)` produced by `I` -/
 inductive Term.ΩArg : Term → Prop where
   | ω : Term.ΩArg combω
   | I {a : Term} : Term.ΩArg a → Term.ΩArg (combI ⬝ a)
   | K {a b : Term} : Term.ΩArg a → Term.ΩArg b →
       Term.ΩArg ((△ ⬝ △) ⬝ a ⬝ ((△ ⬝ △) ⬝ b))
 
+/-- Top-level terms reachable from `combΩ` by reduction: always an `ΩArg`
+applied to one more `ΩArg`. These are exactly the non-NF shapes that the
+Ω-loop stays inside of:
+* `ωapp` — `combω ⬝ a` (includes `combΩ` itself)
+* `Iapp` — `combI ⬝ a ⬝ b` (the Rule-2 reduct of `ωapp`)
+* `Kapp` — K-body applied to `c` (the Rule-1 reduct of `Iapp` when `a = b`) -/
 inductive Term.ΩForm : Term → Prop where
   | ωapp {a : Term} : Term.ΩArg a → Term.ΩForm (combω ⬝ a)
   | Iapp {a b : Term} : Term.ΩArg a → Term.ΩArg b → Term.ΩForm (combI ⬝ a ⬝ b)
@@ -594,13 +473,6 @@ theorem Term.ΩArg.apply_ΩArg {a c : Term} (ha : a.ΩArg) (hc : c.ΩArg) :
   | ω => exact .ωapp hc
   | I ha => exact .Iapp ha hc
   | K ha hb => exact .Kapp ha hb hc
-
-theorem Term.apply_inj {fn1 arg1 fn2 arg2 : Term}
-    (h : fn1 ⬝ arg1 = fn2 ⬝ arg2) : fn1 = fn2 ∧ arg1 = arg2 := by
-  cases fn1 with | term cs1
-  cases fn2 with | term cs2
-  simp [Term.apply] at h
-  exact ⟨congrArg Term.term h.1, h.2⟩
 
 /-- One-step reducts of `combI ⬝ a`. -/
 theorem Term.reduces_combI_app {a t' : Term} (hr : Reduces (combI ⬝ a) t') :
@@ -864,6 +736,7 @@ theorem combΩ_diverges : combΩ.Diverges := by
 theorem exists_diverging_term : ∃ t : Term, t.Diverges :=
   ⟨combΩ, combΩ_diverges⟩
 
+end Divergence
 
 /-! ### Future work (not needed for divergence)
 Executable `Term.reduce`, confluence of `Reduces`, and value-classification /

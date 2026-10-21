@@ -12,7 +12,7 @@ import TreeCalculus.Term
 These are local rewrite sites, not a test for normal form of an entire subtree.
 `rootRule` matches exactly three arguments; `redexRule` also sees a rewritable
 three-argument prefix with further arguments attached by application.
-Correctness against `RewriteRules` is checked in `TreeCalculus.lean`.
+Correctness against `RewriteRules` and `Reduces` is proved at the end of this file.
 -/
 
 inductive RedexRule where
@@ -44,7 +44,7 @@ def Term.redexRule : Term → Option RedexRule
 /-! ### Executable rewriting
 
 The widget steps through reductions with these functions. `Term.rewriteAt?`
-is proved sound with respect to `Reduces` in `TreeCalculus.lean`.
+is proved sound with respect to `Reduces` below.
 -/
 
 /-- The output of `RewriteRules` on a term with exactly three arguments. -/
@@ -92,3 +92,87 @@ def Term.runOutermost (fuel maxSize : Nat) (t : Term) (steps : Nat := 0) : Term 
     match t.firstRedex?.bind t.rewriteAt? with
     | none => (t, steps)
     | some t' => if t'.size > maxSize then (t', steps + 1) else t'.runOutermost fuel maxSize (steps + 1)
+
+
+
+
+/-! ### Agreement with `RewriteRules` and `Reduces` -/
+
+/-- Every reported local rule is an actual rewrite rule. -/
+theorem Term.rootRule_sound (h : t.rootRule = some rule) :
+    ∃ output, RewriteRules t output := by
+  unfold Term.rootRule at h
+  split at h
+  · exact ⟨_, .one⟩
+  · exact ⟨_, .two⟩
+  · exact ⟨_, .threeA⟩
+  · exact ⟨_, .threeB⟩
+  · exact ⟨_, .threeC⟩
+  · contradiction
+
+/-- The local classifier detects exactly the roots accepted by `RewriteRules`. -/
+theorem Term.rootRule_correct (t : Term) :
+    t.rootRule.isSome = true ↔ ∃ output, RewriteRules t output := by
+  constructor
+  · intro h
+    cases heq : t.rootRule with
+    | none => simp [heq] at h
+    | some rule => exact Term.rootRule_sound heq
+  · rintro ⟨_, h⟩
+    cases h <;> rfl
+
+-- theorem Term.rootRule_complete (t : Term) :
+--     t.rootRule = some output ↔ RewriteRules t output := by
+--   sorry
+
+
+/-- Extra arguments do not hide a rewrite site in the application prefix. -/
+theorem Term.redexRule_prefix_correct (a b c : Term) (rest : List Term) :
+    (Term.term (a :: b :: c :: rest)).redexRule.isSome = true ↔
+      ∃ output, RewriteRules (Term.term [a, b, c]) output :=
+  Term.rootRule_correct _
+
+theorem Term.rootRewrite?_sound {t t' : Term} (h : t.rootRewrite? = some t') :
+    RewriteRules t t' := by
+  unfold Term.rootRewrite? at h
+  split at h <;> cases h
+  · exact .one
+  · exact .two
+  · exact .threeA
+  · exact .threeB
+  · exact .threeC
+
+theorem Term.rewrite?_sound {t t' : Term} (h : t.rewrite? = some t') : Reduces t t' := by
+  unfold Term.rewrite? at h
+  split at h
+  · rename_i a b c rest
+    obtain ⟨r, hr, rfl⟩ := Option.map_eq_some_iff.mp h
+    have : Term.term (a :: b :: c :: rest) = rest.foldl (· ⬝ ·) (.term [a, b, c]) := by
+      rw [Term.foldl_apply]; rfl
+    rw [this]
+    exact Reduces.congr_foldl rest (.rule (Term.rootRewrite?_sound hr))
+  · cases h
+
+/-- Every step the widget shows is a `Reduces` step. -/
+theorem Term.rewriteAt?_sound {t t' : Term} {path : List Nat}
+    (h : t.rewriteAt? path = some t') : Reduces t t' := by
+  induction path generalizing t t' with
+  | nil => exact Term.rewrite?_sound h
+  | cons i path ih =>
+    obtain ⟨cs⟩ := t
+    simp only [Term.rewriteAt?, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at h
+    obtain ⟨c, hc, c', hc', rfl⟩ := h
+    exact Reduces.congr_arg hc (ih hc')
+
+theorem Term.rootRewrite?_isSome (a b c : Term) :
+    (Term.term [a, b, c]).rootRewrite?.isSome = (Term.term [a, b, c]).rootRule.isSome := by
+  obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := a <;>
+    obtain ⟨_ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ := c <;> rfl
+
+/-- The widget colours exactly the nodes it can rewrite. -/
+theorem Term.rewrite?_isSome (t : Term) : t.rewrite?.isSome = t.redexRule.isSome := by
+  unfold Term.rewrite? Term.redexRule
+  split
+  · rw [Option.isSome_map]; exact Term.rootRewrite?_isSome ..
+  · rfl
