@@ -13,6 +13,12 @@ name = "treeWidgetJs"
 path = "src/TreeCalculus/Widget/tree.js"
 text = true
 
+# Exercises with `sorry`s; opt in with `lake build Quests`.
+[[lean_lib]]
+name = "Quests"
+srcDir = "src"
+roots = ["Quests.Q1Normalization", "Quests.Q2Confluence"]
+
 # Archived TC implementation; opt in with `lake build TriageArchive`.
 [[lean_lib]]
 name = "TriageArchive"
