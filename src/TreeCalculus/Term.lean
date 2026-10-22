@@ -201,7 +201,7 @@ inductive RewriteRules : (input output : Term) → Prop where
     RewriteRules (△⬝(△⬝w⬝x)⬝y⬝(△⬝u⬝v))
       (y⬝u⬝v)
 
--- Full reduction relation: includes the 5 rules + congruence
+/-- Full reduction relation: includes the 5 rules + congruence -/
 @[grind cases]
 inductive Reduces : (input output : Term) → Prop where
   | rule {t t' : Term} :
