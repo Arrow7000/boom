@@ -20,13 +20,6 @@ congruence retains trailing arguments. The confluence theorem below is only
 about `ValOrRedex`, not about `Term`.
 -/
 
-/-- Static values, that cannot be reduced further, not even their subterms -/
-@[grind cases]
-inductive Value : Type where
-  | leaf : Value
-  | stem : Value → Value
-  | fork : Value → Value → Value
-
 
 
 
@@ -46,8 +39,7 @@ inductive ValOrRedex
 
 
 @[reducible, simp]
-def ValOrRedex.toList (v : ValOrRedex) : List ValOrRedex :=
-  match v with
+def ValOrRedex.toList : (v : ValOrRedex) → List ValOrRedex
   | .leaf => []
   | .stem a => a :: []
   | .fork a b => a :: b :: []
@@ -56,8 +48,7 @@ def ValOrRedex.toList (v : ValOrRedex) : List ValOrRedex :=
 
 
 @[reducible, simp]
-def ValOrRedex.ofList (list : List ValOrRedex) : ValOrRedex :=
-  match list with
+def ValOrRedex.ofList : (list : List ValOrRedex) → ValOrRedex
   | [] => .leaf
   | a :: [] => .stem a
   | a :: b :: [] => .fork a b
@@ -365,7 +356,7 @@ inductive ReductionStep : (term output : ValOrRedex) → Prop where
 
   | rewrite :
     Rewrite a b c output →
-    ReductionStep (.redex a b c rest) output
+    ReductionStep (.redex a b c rest) (.ofList (output.toList ++ rest))
 
 
   -- The congruence rules
