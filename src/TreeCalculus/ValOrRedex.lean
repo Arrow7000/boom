@@ -6,6 +6,7 @@ Authors: Aron Adler
 
 import Mathlib.Tactic.Tauto
 import Mathlib.Logic.Relation
+import Batteries.Data.List.Basic
 
 /-!
 # Value/redex presentation of Tree Calculus
