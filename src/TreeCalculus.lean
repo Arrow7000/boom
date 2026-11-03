@@ -7,6 +7,7 @@ Authors: Aron Adler
 import Mathlib.Tactic.Tauto
 import Mathlib.Logic.Relation
 import TreeCalculus.Term
+import TreeCalculus.PrettyPrint
 import TreeCalculus.Redex
 import TreeCalculus.Widget
 
@@ -14,7 +15,8 @@ import TreeCalculus.Widget
 # Tree Calculus
 
 The syntax `Term`, the rewrite rules and `Reduces` are defined in
-`TreeCalculus.Term`. The executable rewriting used by the widget, and its
+`TreeCalculus.Term`, and how terms are displayed in
+`TreeCalculus.PrettyPrint`. The executable rewriting used by the widget, and its
 agreement with `Reduces`, is in `TreeCalculus.Redex`. Regression checks for the
 widget's executable code are in `TreeCalculus.Tests`.
 Use `#tree expression` to inspect a term in the infoview without reducing it.
